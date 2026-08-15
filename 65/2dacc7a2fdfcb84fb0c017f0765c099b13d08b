@@ -1,0 +1,145 @@
+spine-tasks/SP-012-range-ignore-volume/PROMPT.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-121
+spine-tasks/SP-005-stats-file-cap-skip/STATUS.md
+  s_5f8844aed8b677::t_c1565a12b10bdc 1-3,5-91
+  s_a420424dc67b56::t_212db95fbab9a5 4
+spine-tasks/SP-008-hunk-zip-git-diff-volume/STATUS.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-79
+.spine/agents/worker.md
+  s_5f8844aed8b677::t_e709b9b96ecc5a 1-122
+spine-tasks/_authoring/write_s_packets.py
+  s_a420424dc67b56::t_f5eeb4b253e1b6 1-833
+spine-tasks/SP-006-stats-json-schema/STATUS.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-79
+spine-tasks/SP-010-tool-model-volume/PROMPT.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-122
+spine-tasks/SP-011-range-json-volume/STATUS.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-79
+spine-tasks/SP-013-stats-file-cap-skip/STATUS.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-79
+.spine/.gitignore
+  s_a420424dc67b56::t_aa7c9c2afde7f2 1-6
+.spine/rules-profile.json
+  s_5f8844aed8b677::t_e709b9b96ecc5a 1-27
+spine-tasks/SP-009-single-commit-bucket-volume/PROMPT.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-132
+spine-tasks/SP-009-single-commit-bucket-volume/STATUS.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-79
+spine-tasks/SP-014-stats-volume-polish/PROMPT.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-39,41-123
+  s_a420424dc67b56::t_ff21400fdc2ba0 40
+specs/903-stats-char-byte-metrics/tasks.md
+  s_c64642615c89fc::t_ce6a154787ab34 1-206
+.spine/agents/supervisor.md
+  s_5f8844aed8b677::t_e709b9b96ecc5a 1-68
+spine-tasks/SP-001-stats-volume-schema-helper/STATUS.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-98
+spine-tasks/SP-013-stats-file-cap-skip/PROMPT.md
+  s_a420424dc67b56::t_86e81b9a320ddf 61,68
+  s_a420424dc67b56::t_a4a22cc6da6076 122
+  s_a420424dc67b56::t_dbf36b6c4dd664 41,48-49
+  s_a420424dc67b56::t_212db95fbab9a5 1-40,42-47,50-60,62-67,69-121,123-134
+spine-tasks/SP-005-stats-file-cap-skip/.SUPERSEDED
+  s_a420424dc67b56::t_212db95fbab9a5 1-2
+spine-tasks/dependencies.json
+  s_5f8844aed8b677::t_c15a8340b05014 1-2,4-5,15-16
+  s_a420424dc67b56::t_4be77b38ccf26e 3,6-14
+spine-tasks/SP-002-stats-max-file-bytes-config/PROMPT.md
+  s_a420424dc67b56::t_8172c2f3f9d9b9 108
+  s_a420424dc67b56::t_201c1c2e0ac330 15
+  s_5f8844aed8b677::t_1c7fcfec793164 2-14,16-107,109-118
+  s_5f8844aed8b677::t_4bd6be17a9e258 1
+.spine/rules-manifest.json
+  s_5f8844aed8b677::t_e709b9b96ecc5a 1-408
+spine-tasks/SP-002-stats-max-file-bytes-config/STATUS.md
+  s_5f8844aed8b677::t_c1143080d87ac7 1-88
+specs/903-stats-char-byte-metrics/plan.md
+  s_a420424dc67b56::t_e538f8fa7e26a7 99,101
+  s_c64642615c89fc::t_db2685ff4f0cbe 60
+  s_5f8844aed8b677::t_e5a8c26c9d2c04 100,102
+spine-tasks/CONTEXT.md
+  s_5f8844aed8b677::t_0a6d1ad159c145 11,13,15-16,38,42,45,47,49-78,80-83
+  s_5f8844aed8b677::t_e709b9b96ecc5a 1-4,6-10,12,14,37,39-41,43-44,46,48,79
+  s_a420424dc67b56::t_7828ae2e0431de 5,17-36
+spine-tasks/SP-008-hunk-zip-git-diff-volume/PROMPT.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-128
+spine-tasks/SP-014-stats-volume-polish/STATUS.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-79
+.spine/agents/reviewer.md
+  s_5f8844aed8b677::t_e709b9b96ecc5a 1-123
+spine-tasks/SP-003-stats-json-single-commit/PROMPT.md
+  s_5f8844aed8b677::t_6938b1252f0fbb 1
+  s_5f8844aed8b677::t_523a231639c8e5 2-146
+spine-tasks/SP-007-payload-volume-helper/PROMPT.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-123
+spine-tasks/SP-011-range-json-volume/PROMPT.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-129
+spine-tasks/SP-004-stats-json-range/.SUPERSEDED
+  s_a420424dc67b56::t_212db95fbab9a5 1-2
+spine-tasks/SP-001-stats-volume-schema-helper/.SUPERSEDED
+  s_a420424dc67b56::t_212db95fbab9a5 1-2
+.spine/spine-config.json
+  s_a420424dc67b56::t_8fcb1e4c8c334f 10
+  s_5f8844aed8b677::t_e709b9b96ecc5a 1-4,6-9,11,15-18,20-22,25-27,36-38,40,126-128,130-168,172-187,190-193
+  s_5f8844aed8b677::t_c3018296424bc3 5,12-14,19,23-24,28-35,39,41-125,129,169-171,188-189
+spine-tasks/SP-012-range-ignore-volume/STATUS.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-79
+spine-tasks/SP-003-stats-json-single-commit/STATUS.md
+  s_5f8844aed8b677::t_a17fec7d9e113d 1-3,5-91
+  s_a420424dc67b56::t_212db95fbab9a5 4
+spine-tasks/SP-001-stats-volume-schema-helper/PROMPT.md
+  s_5f8844aed8b677::t_302d96fdef90fc 1
+  s_5f8844aed8b677::t_bd53c2ffaf0f1a 2-4
+  s_a420424dc67b56::t_8550697f7de77c 5-146
+spine-tasks/SP-005-stats-file-cap-skip/PROMPT.md
+  s_5f8844aed8b677::t_2fd5ffdcae2412 43,50
+  s_5f8844aed8b677::t_6c7af34798a26b 1
+  s_5f8844aed8b677::t_a828b48f4186cf 2-42,44-49,51-130
+spine-tasks/SP-003-stats-json-single-commit/.SUPERSEDED
+  s_a420424dc67b56::t_212db95fbab9a5 1-2
+spine-tasks/SP-004-stats-json-range/PROMPT.md
+  s_5f8844aed8b677::t_533e4c73785018 1
+  s_5f8844aed8b677::t_b690125f6e8ed2 42,49
+  s_5f8844aed8b677::t_6b51fc99ec16bb 2-41,43-48,50-129
+spine-tasks/SP-004-stats-json-range/STATUS.md
+  s_5f8844aed8b677::t_66b1af027c3a13 1-3,5-87
+  s_a420424dc67b56::t_212db95fbab9a5 4
+spine-tasks/SP-007-payload-volume-helper/STATUS.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-79
+spine-tasks/SP-006-stats-json-schema/PROMPT.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-129
+spine-tasks/SP-010-tool-model-volume/STATUS.md
+  s_a420424dc67b56::t_212db95fbab9a5 1-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "652dacc7a2fdfcb84fb0c017f0765c099b13d08b",
+  "prompts": {},
+  "sessions": {
+    "s_5f8844aed8b677": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-c9ad2034-3728-419c-8df0-d0c003e97d7b",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    },
+    "s_a420424dc67b56": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-6f9c78e6-04ed-4b9d-8223-c965aec825d8",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    },
+    "s_c64642615c89fc": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-3756caf9-353e-4651-b95f-3ddaafe68258",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
