@@ -1,0 +1,18 @@
+src/authorship/post_commit.rs
+  h_ae151c586ac6c5 1320,1328,1355
+src/authorship/stats.rs
+  h_ae151c586ac6c5 23-30,48-71,459,761,776,791,806,821,838,852,866,880,910,925,940,955,970
+tests/integration/stats.rs
+  h_ae151c586ac6c5 495,517,539,561,583,606,625,637
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "732cdffbaf49075757cdeb7c7416b9d444c9246e",
+  "prompts": {},
+  "humans": {
+    "h_ae151c586ac6c5": {
+      "author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
