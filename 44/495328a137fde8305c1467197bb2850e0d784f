@@ -1,0 +1,14 @@
+tests/integration/stats_unit.rs
+  h_ae151c586ac6c5 760-840
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "44495328a137fde8305c1467197bb2850e0d784f",
+  "prompts": {},
+  "humans": {
+    "h_ae151c586ac6c5": {
+      "author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
