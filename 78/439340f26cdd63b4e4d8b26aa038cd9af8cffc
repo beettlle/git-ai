@@ -1,0 +1,20 @@
+spine-tasks/SP-002-stats-max-file-bytes-config/STATUS.md
+  h_ae151c586ac6c5 3-4,14,16-18,23,25-29,34,36-38,43,45-46,51,53-54,69-70,79-80
+src/commands/config.rs
+  h_ae151c586ac6c5 123-125,394-397,546,872-882,1268-1274
+src/config.rs
+  h_ae151c586ac6c5 22,193,283-284,354-355,678-683,1240-1246,1281,1316,1790-1792,1840,2087,2237,2764-2802
+tests/integration/config_cli_coverage.rs
+  h_ae151c586ac6c5 340
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "78439340f26cdd63b4e4d8b26aa038cd9af8cffc",
+  "prompts": {},
+  "humans": {
+    "h_ae151c586ac6c5": {
+      "author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
