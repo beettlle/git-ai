@@ -1,0 +1,47 @@
+spine-tasks/SP-006-stats-json-schema/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 34,49,80,104,118
+spine-tasks/SP-013-stats-file-cap-skip/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 36,47,82-83,106,120
+.spine/spine-config.json
+  s_f6e50e8df41d20::t_d3bff26400eee3 12-14
+spine-tasks/SP-002-stats-max-file-bytes-config/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 31,42,75
+spine-tasks/SP-010-tool-model-volume/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 34,46,75,97,111
+spine-tasks/SP-011-range-json-volume/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 35,47,81,102,116
+spine-tasks/SP-001-stats-volume-schema-helper/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 36,51,94,117,134
+spine-tasks/SP-009-single-commit-bucket-volume/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 35,47,82,106,120
+spine-tasks/SP-005-stats-file-cap-skip/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 37,49,84-85,108
+spine-tasks/SP-008-hunk-zip-git-diff-volume/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 35,46,78,102,116
+spine-tasks/SP-004-stats-json-range/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 36,48,85-86,108
+spine-tasks/SP-014-stats-volume-polish/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 15,34,46,72,97,111
+spine-tasks/SP-003-stats-json-single-commit/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 47,61,98,124
+spine-tasks/SP-007-payload-volume-helper/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 34,45,75,97,111
+spine-tasks/SP-012-range-ignore-volume/PROMPT.md
+  s_f6e50e8df41d20::t_d3bff26400eee3 34,45,74,95,109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "a672f99117ef82f76769f021c6ca363369fab0ea",
+  "prompts": {},
+  "sessions": {
+    "s_f6e50e8df41d20": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-f40fe89d-1179-4db3-8b31-fe54504065c3",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
