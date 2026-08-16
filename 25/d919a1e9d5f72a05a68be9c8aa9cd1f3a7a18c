@@ -1,0 +1,74 @@
+.pi/loops/loops-01a00793-5034-765b-8605-f4e2c081e274.json
+  h_ae151c586ac6c5 1-20
+.pi/loops/loops-01a00793-5034-765b-8605-f4e2c081e274.json.prev
+  h_ae151c586ac6c5 1-20
+.pi/loops/loops-01a00793-519e-7d98-9d8c-bdcf5c2eab73.json
+  h_ae151c586ac6c5 1-20
+.pi/loops/loops-01a00793-519e-7d98-9d8c-bdcf5c2eab73.json.prev
+  h_ae151c586ac6c5 1-20
+.pi/loops/loops-01a007c0-3eb6-79d1-a23e-74b4b8fd52a5.json
+  h_ae151c586ac6c5 1-4
+.pi/loops/loops-01a007c0-3eb6-79d1-a23e-74b4b8fd52a5.json.prev
+  h_ae151c586ac6c5 1-4
+.pi/loops/loops-01a007c0-42d0-74f0-a010-c585a88982f8.json
+  h_ae151c586ac6c5 1-20
+.pi/loops/loops-01a007c0-42d0-74f0-a010-c585a88982f8.json.prev
+  h_ae151c586ac6c5 1-20
+.pi/loops/loops-01a007d6-368b-75d6-99b7-a374bafa40e0.json
+  h_ae151c586ac6c5 1-4
+.pi/loops/loops-01a007d6-368b-75d6-99b7-a374bafa40e0.json.prev
+  h_ae151c586ac6c5 1-4
+.pi/loops/loops-01a00b91-0981-715b-87dd-04a47e61a257.json
+  h_ae151c586ac6c5 1-4
+.pi/loops/loops-01a00b91-0981-715b-87dd-04a47e61a257.json.prev
+  h_ae151c586ac6c5 1-4
+.pi/loops/loops-01a00b91-09b6-7430-a340-c9984245a15d.json
+  h_ae151c586ac6c5 1-4
+.pi/loops/loops-01a00b91-09b6-7430-a340-c9984245a15d.json.prev
+  h_ae151c586ac6c5 1-4
+.pi/loops/loops-01a00b92-49b5-7218-a3b9-873860c2f08d.json
+  h_ae151c586ac6c5 1-4
+.pi/loops/loops-01a00b92-49b5-7218-a3b9-873860c2f08d.json.prev
+  h_ae151c586ac6c5 1-4
+spine-tasks/SP-002-stats-max-file-bytes-config/.DONE
+  h_ae151c586ac6c5 1
+spine-tasks/SP-002-stats-max-file-bytes-config/.reviews/0-20260815T235105.md
+  h_ae151c586ac6c5 1-9
+spine-tasks/SP-002-stats-max-file-bytes-config/.reviews/final-20260816T171408.md
+  h_ae151c586ac6c5 1-8
+spine-tasks/SP-002-stats-max-file-bytes-config/STATUS.md
+  h_ae151c586ac6c5 3-4,14,16-18,23,25-29,34,36-38,43,45-46,51,53-54,69-70,79-80
+spine-tasks/SP-006-stats-json-schema/.DONE
+  h_ae151c586ac6c5 1
+spine-tasks/SP-006-stats-json-schema/.reviews/0-20260816T171408.md
+  h_ae151c586ac6c5 1-11
+spine-tasks/SP-006-stats-json-schema/.reviews/final-20260816T171530.md
+  h_ae151c586ac6c5 1-8
+spine-tasks/SP-006-stats-json-schema/STATUS.md
+  h_ae151c586ac6c5 3-4,14,16-21,26,28-31,36,38,43,45-48,53,55-56,80-81
+src/authorship/post_commit.rs
+  h_ae151c586ac6c5 1320,1328,1355
+src/authorship/stats.rs
+  h_ae151c586ac6c5 23-30,48-71,459,761,776,791,806,821,838,852,866,880,910,925,940,955,970
+src/commands/config.rs
+  h_ae151c586ac6c5 123-125,394-397,546,872-882,1268-1274
+src/config.rs
+  h_ae151c586ac6c5 22,193,283-284,354-355,678-683,1240-1246,1281,1316,1790-1792,1840,2087,2237,2764-2802
+tests/integration/config_cli_coverage.rs
+  h_ae151c586ac6c5 340
+tests/integration/stats.rs
+  h_ae151c586ac6c5 495,517,539,561,583,606,625,637
+tests/integration/stats_unit.rs
+  h_ae151c586ac6c5 760-840
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "25d919a1e9d5f72a05a68be9c8aa9cd1f3a7a18c",
+  "prompts": {},
+  "humans": {
+    "h_ae151c586ac6c5": {
+      "author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
