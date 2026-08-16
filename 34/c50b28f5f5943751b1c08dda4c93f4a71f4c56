@@ -1,0 +1,21 @@
+spine-tasks/SP-002-stats-max-file-bytes-config/.DONE
+  s_f6e50e8df41d20::t_6b1f94433f6879 1
+spine-tasks/SP-002-stats-max-file-bytes-config/PROMPT.md
+  s_f6e50e8df41d20::t_8bdef649911958 31,42,75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "34c50b28f5f5943751b1c08dda4c93f4a71f4c56",
+  "prompts": {},
+  "sessions": {
+    "s_f6e50e8df41d20": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-f40fe89d-1179-4db3-8b31-fe54504065c3",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
