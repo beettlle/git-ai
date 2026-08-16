@@ -1,0 +1,25 @@
+spine-tasks/SP-006-stats-json-schema/STATUS.md
+  s_f6e50e8df41d20::t_f6ac24aed4c3ed 43,45-48,53,55-56
+  s_f6e50e8df41d20::t_f855eadd7b8229 81
+  s_f6e50e8df41d20::t_558e6d8757d5a6 3-4
+spine-tasks/SP-006-stats-json-schema/.DONE
+  s_f6e50e8df41d20::t_8090fcca24cf8c 1
+spine-tasks/SP-006-stats-json-schema/PROMPT.md
+  s_f6e50e8df41d20::t_5e461978092a5b 34,49,80,104,118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "b06ad1d7c8d9d6a2504d326d4ddf574fdc1bf1ec",
+  "prompts": {},
+  "sessions": {
+    "s_f6e50e8df41d20": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-f40fe89d-1179-4db3-8b31-fe54504065c3",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
