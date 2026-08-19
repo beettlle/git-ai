@@ -1,0 +1,25 @@
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/config.json
+  s_324a40b58043e5::t_e13d4f48b2b274 1-25
+spine-tasks/SP-007-payload-volume-helper/STATUS.md
+  s_324a40b58043e5::t_f2012e84f26ca3 3-5,14,16-17,22,24-25,30,32-34,39,41-43,48,50-51,67-68,77-80
+src/authorship/stats.rs
+  s_324a40b58043e5::t_d4ec356947fa43 625-645
+tests/integration/stats_unit.rs
+  s_324a40b58043e5::t_ffc5a824144051 841-916
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "8ff62d9f1a78ce892de918d660b1f028cf5a363d",
+  "prompts": {},
+  "sessions": {
+    "s_324a40b58043e5": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-9b6c3571-7b9e-467e-964d-87ac0a04f12e",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
