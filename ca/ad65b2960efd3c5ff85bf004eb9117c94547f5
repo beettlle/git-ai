@@ -1,0 +1,29 @@
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/tokenizer.json
+  s_324a40b58043e5::t_cf02d571e0703b 1-30686
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/tokenizer_config.json
+  s_324a40b58043e5::t_cf02d571e0703b 1-15
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/config.json
+  s_324a40b58043e5::t_cf02d571e0703b 1-25
+spine-tasks/SP-008-hunk-zip-git-diff-volume/STATUS.md
+  s_324a40b58043e5::t_65d3b518006623 3-5,14,16-17,22,24-27,32,34-37,42,44-47,52,54-55,71-72,81-84
+src/authorship/stats.rs
+  s_324a40b58043e5::t_bdc71484c1460e 689-692,702-718,735,742-749
+tests/integration/stats_unit.rs
+  s_324a40b58043e5::t_396089c3559f49 685-786
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "caad65b2960efd3c5ff85bf004eb9117c94547f5",
+  "prompts": {},
+  "sessions": {
+    "s_324a40b58043e5": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-9b6c3571-7b9e-467e-964d-87ac0a04f12e",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
