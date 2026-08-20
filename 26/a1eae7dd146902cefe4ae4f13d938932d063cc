@@ -1,0 +1,41 @@
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/config.json
+  s_324a40b58043e5::t_227bcbad18351d 1-25
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/tokenizer.json
+  s_324a40b58043e5::t_46c7ba08b3a0c9 1-30686
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/tokenizer_config.json
+  s_324a40b58043e5::t_9be3114111cc58 1-15
+.pi/loops/loops-01a01c77-83f2-7ed9-adf6-dc6533d4f28d.json
+  s_8b58b9d3859cdb::t_34902ba39a5fca 1-4
+.pi/loops/loops-01a01c77-83f2-7ed9-adf6-dc6533d4f28d.json.prev
+  s_8b58b9d3859cdb::t_3777a8662b1066 1-4
+.pi/loops/loops-01a01c81-691e-71a9-a98c-3d33fa7e7658.json
+  s_324a40b58043e5::t_2183f24257f675 1-4
+.pi/loops/loops-01a01c81-691e-71a9-a98c-3d33fa7e7658.json.prev
+  s_324a40b58043e5::t_bc61f8790d3911 1-4
+spine-tasks/SP-008-hunk-zip-git-diff-volume/.reviews/0-20260820T001037.md
+  s_324a40b58043e5::t_0a0927db7ceeda 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "26a1eae7dd146902cefe4ae4f13d938932d063cc",
+  "prompts": {},
+  "sessions": {
+    "s_324a40b58043e5": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-9b6c3571-7b9e-467e-964d-87ac0a04f12e",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    },
+    "s_8b58b9d3859cdb": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a00668-fdb6-72dd-883f-5f06d201e48a",
+        "model": "auto"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
