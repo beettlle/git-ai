@@ -1,0 +1,16 @@
+spine-tasks/SP-010-tool-model-volume/STATUS.md
+  h_ae151c586ac6c5 3,22,24-25,30,32-33
+tests/integration/stats.rs
+  h_ae151c586ac6c5 438-452,472-476
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "2c5193b6ef5e102e1c2bc5d8845a942cd72a89b3",
+  "prompts": {},
+  "humans": {
+    "h_ae151c586ac6c5": {
+      "author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
