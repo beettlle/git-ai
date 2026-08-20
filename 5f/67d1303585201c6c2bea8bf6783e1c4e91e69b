@@ -1,0 +1,16 @@
+spine-tasks/SP-008-hunk-zip-git-diff-volume/STATUS.md
+  h_ae151c586ac6c5 3,22,24-27
+tests/integration/stats_unit.rs
+  h_ae151c586ac6c5 685-786
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.22",
+  "base_commit_sha": "5f67d1303585201c6c2bea8bf6783e1c4e91e69b",
+  "prompts": {},
+  "humans": {
+    "h_ae151c586ac6c5": {
+      "author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
