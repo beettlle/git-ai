@@ -1,0 +1,16 @@
+spine-tasks/CONTEXT.md
+  h_ae151c586ac6c5 80
+spine-tasks/SP-014-stats-volume-polish/STATUS.md
+  h_ae151c586ac6c5 3-5,38,40-43,48,50-51,67-69,78-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "3383f77d7b61ea59e5ec4839f17ca9fde1926ec1",
+  "prompts": {},
+  "humans": {
+    "h_ae151c586ac6c5": {
+      "author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
