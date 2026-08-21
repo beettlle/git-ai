@@ -1,0 +1,35 @@
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/config.json
+  s_fddc680980f7fd::t_09dfdc1637721f 1-25
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/tokenizer.json
+  s_fddc680980f7fd::t_09dfdc1637721f 1-30686
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/tokenizer_config.json
+  s_fddc680980f7fd::t_09dfdc1637721f 1-15
+spine-tasks/SP-012-range-ignore-volume/STATUS.md
+  s_e920c5b96521f3::t_1c60f1e856d4e8 3-5,14,16-17,22,24-25,30,32-33,38,40-41,46,48-49,65-66,75-79,91
+tests/integration/stats_range_volume.rs
+  s_e920c5b96521f3::t_917dcb20bc2270 194-284
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "6010449913c25a970b53dfbc5ef3c967f0c03450",
+  "prompts": {},
+  "sessions": {
+    "s_e920c5b96521f3": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-ce3c7384-401e-41c8-9a4e-09466d4927f3",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    },
+    "s_fddc680980f7fd": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-7b985f25-7efa-4293-9824-6c0fc9b2f316",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
