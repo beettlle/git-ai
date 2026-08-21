@@ -1,0 +1,23 @@
+spine-tasks/SP-013-stats-file-cap-skip/STATUS.md
+  s_fddc680980f7fd::t_ce4a44b1d5ccf8 3-5,14,16-18,23,25-28,33,35-39,44,46-49,54,56-58,74-75,84-88
+src/authorship/stats.rs
+  s_fddc680980f7fd::t_acfa3d531995ff 869-942,952-953,955-956,960-969,977-992
+tests/integration/stats.rs
+  s_fddc680980f7fd::t_a640e1e87f0c30 1082-1246,1250-1251
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "3658a695772e75a95f4ed5f3bcd31cbee6f5cb89",
+  "prompts": {},
+  "sessions": {
+    "s_fddc680980f7fd": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-7b985f25-7efa-4293-9824-6c0fc9b2f316",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
