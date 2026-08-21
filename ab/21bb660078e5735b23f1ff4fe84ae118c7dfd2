@@ -1,0 +1,19 @@
+tests/integration/stats_range_volume.rs
+  s_42795060dc9c14::t_b486bd81153faf 1-182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "ab21bb660078e5735b23f1ff4fe84ae118c7dfd2",
+  "prompts": {},
+  "sessions": {
+    "s_42795060dc9c14": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-a7cc2e8e-2b51-4522-b857-0c507fe46d98",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
