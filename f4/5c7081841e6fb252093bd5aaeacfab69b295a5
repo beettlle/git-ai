@@ -1,0 +1,16 @@
+spine-tasks/SP-012-range-ignore-volume/STATUS.md
+  h_ae151c586ac6c5 3-4,46,79
+tests/integration/stats_range_volume.rs
+  h_ae151c586ac6c5 249
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "f45c7081841e6fb252093bd5aaeacfab69b295a5",
+  "prompts": {},
+  "humans": {
+    "h_ae151c586ac6c5": {
+      "author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
