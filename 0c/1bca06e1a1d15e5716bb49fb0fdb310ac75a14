@@ -1,0 +1,37 @@
+.pi/loops/loops-01a022bb-bae3-78db-8a50-ebd3c9bd61d1.json
+  s_fddc680980f7fd::t_4651bc09e3b1e3 1-4
+.pi/loops/loops-01a022bb-bae3-78db-8a50-ebd3c9bd61d1.json.prev
+  s_fddc680980f7fd::t_b7f22367ad1ce2 1-4
+spine-tasks/SP-013-stats-file-cap-skip/.reviews/0-20260821T053333.md
+  s_8b58b9d3859cdb::t_3c19658cea88ab 1-8
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/config.json
+  s_fddc680980f7fd::t_e7dbe367de6cd7 1-25
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/tokenizer.json
+  s_fddc680980f7fd::t_dedd45a593a621 1-30686
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/tokenizer_config.json
+  s_fddc680980f7fd::t_b7fd6eadb6d43d 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "0c1bca06e1a1d15e5716bb49fb0fdb310ac75a14",
+  "prompts": {},
+  "sessions": {
+    "s_8b58b9d3859cdb": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a00668-fdb6-72dd-883f-5f06d201e48a",
+        "model": "auto"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    },
+    "s_fddc680980f7fd": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-7b985f25-7efa-4293-9824-6c0fc9b2f316",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
