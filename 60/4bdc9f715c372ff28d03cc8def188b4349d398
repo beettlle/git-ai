@@ -1,0 +1,14 @@
+spine-tasks/SP-011-range-json-volume/STATUS.md
+  h_ae151c586ac6c5 3-4,42,44-45,50,52-53,69-70,79-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "604bdc9f715c372ff28d03cc8def188b4349d398",
+  "prompts": {},
+  "humans": {
+    "h_ae151c586ac6c5": {
+      "author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
