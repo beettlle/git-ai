@@ -1,0 +1,18 @@
+src/authorship/stats.rs
+  h_ae151c586ac6c5 869-942,952-953,955-956,960-969,977-992
+tests/integration/stats.rs
+  h_ae151c586ac6c5 1102-1103
+spine-tasks/SP-013-stats-file-cap-skip/STATUS.md
+  h_ae151c586ac6c5 3-5,14,16-18,23,25-28,33,35-39,44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "9ad8c93bd92152b242da17e44bf19a6d30305a7a",
+  "prompts": {},
+  "humans": {
+    "h_ae151c586ac6c5": {
+      "author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
