@@ -1,0 +1,39 @@
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/tokenizer_config.json
+  s_2d3ee5509b9299::t_147a0a11102085 1-15
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/config.json
+  s_2d3ee5509b9299::t_147a0a11102085 1-25
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/tokenizer.json
+  s_2d3ee5509b9299::t_147a0a11102085 1-30686
+spine-tasks/SP-010-tool-model-volume/STATUS.md
+  s_fddc680980f7fd::t_1d2a3c9061e77a 3-5,14,16-17,22,24-25,30,32-33,38,40-42,47,49-50,66-67,76-80,93-94
+src/authorship/stats.rs
+  s_fddc680980f7fd::t_8910ea9c464175 24,751-839,967-985
+tests/integration/stats.rs
+  s_fddc680980f7fd::t_368e5ea12782eb 438-452,472-476
+tests/integration/stats_unit.rs
+  s_fddc680980f7fd::t_dad2baef254d09 1066-1178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "1e259428ae4714008315436713ff5e4a1bf18c29",
+  "prompts": {},
+  "sessions": {
+    "s_2d3ee5509b9299": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-cbfc422b-1d01-43d3-a4a9-4c3200bbdc13",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    },
+    "s_fddc680980f7fd": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-7b985f25-7efa-4293-9824-6c0fc9b2f316",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
