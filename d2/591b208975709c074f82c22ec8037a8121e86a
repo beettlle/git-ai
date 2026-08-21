@@ -1,0 +1,19 @@
+spine-tasks/SP-013-stats-file-cap-skip/STATUS.md
+  s_fddc680980f7fd::t_f3021cb3dea178 3,44,46-49,54,56-58,74-75,84-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "d2591b208975709c074f82c22ec8037a8121e86a",
+  "prompts": {},
+  "sessions": {
+    "s_fddc680980f7fd": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-7b985f25-7efa-4293-9824-6c0fc9b2f316",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
