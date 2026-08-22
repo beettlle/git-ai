@@ -1,0 +1,23 @@
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/config.json
+  s_e920c5b96521f3::t_a787780a449293 1-25
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/tokenizer_config.json
+  s_e920c5b96521f3::t_a787780a449293 1-15
+.pi-smart-router/models/Xenova/all-MiniLM-L6-v2/tokenizer.json
+  s_e920c5b96521f3::t_a787780a449293 1-30686
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "1088bf70b95bef3084d3d5e133642108459a80d1",
+  "prompts": {},
+  "sessions": {
+    "s_e920c5b96521f3": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-ce3c7384-401e-41c8-9a4e-09466d4927f3",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
