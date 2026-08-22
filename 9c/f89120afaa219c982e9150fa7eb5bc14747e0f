@@ -1,0 +1,19 @@
+.gitignore
+  s_4d3de6aeeb50a1::t_eaabbe4e927c9c 48-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "9cf89120afaa219c982e9150fa7eb5bc14747e0f",
+  "prompts": {},
+  "sessions": {
+    "s_4d3de6aeeb50a1": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-f8769ce5-6dff-43ae-87b1-62ebc3b33647",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
