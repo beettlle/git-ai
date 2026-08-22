@@ -1,0 +1,89 @@
+.spine/rules-manifest.json
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 1-408
+tests/integration/stats.rs
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 331-476,641,663,685,707,729,752,771,783,1082-1246,1249-1251
+tests/integration/config_cli_coverage.rs
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 340
+specs/903-stats-char-byte-metrics/tasks.md
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 1-206
+.spine/agents/supervisor.md
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 1-68
+.spine/rules-profile.json
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 1-27
+tests/integration/main.rs
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 139
+.gitignore
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 44-54
+specs/903-stats-char-byte-metrics/quickstart.md
+  s_6a183ace1683aa::t_ca808054189e5b 1-49
+src/authorship/stats.rs
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 9,23-30,48-71,459,625-645,648-653,655-658,662-721,724-837,869-942,945-948,950,952-953,955-956,960-970,976-992,1000-1003,1008,1015-1059,1120,1135,1150,1165,1180,1197,1211,1225,1239,1269,1284,1299,1314,1329
+specs/903-stats-char-byte-metrics/plan.md
+  s_c64642615c89fc::t_8f2c169a299adb 7
+  s_6a183ace1683aa::t_f405db10e6d73b 1,3,5,11,15,17,19,21,23,25,27,29,31,37-44,46-47,53-59,66-74,76-98,103,105,109,113
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 60,99-102
+  s_6a183ace1683aa::t_b1a4c698e021d7 2,4,6,8-10,12-14,16,18,20,22,24,26,28,30,32-36,45,48-52,61-65,75,104,106-108,110-112
+specs/903-stats-char-byte-metrics/data-model.md
+  s_6a183ace1683aa::t_195d1e7fe5ca4f 1-59
+src/commands/config.rs
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 123-125,394-397,546,872-882,1268-1272
+  s_4d3de6aeeb50a1::t_4a3846d2dcf5ea 1273-1274
+tests/integration/stats_range_volume.rs
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 1-284
+.spine/spine-config.json
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 1-193
+src/authorship/post_commit.rs
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 1320,1328,1355
+specs/903-stats-char-byte-metrics/contracts/stats-json.md
+  s_6a183ace1683aa::t_129e6641690eb3 1-72
+.spine/agents/reviewer.md
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 1-123
+src/authorship/range_authorship.rs
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 10-12,362-414,430,439-476
+  s_4d3de6aeeb50a1::t_b8e6bf879fe5ec 477
+specs/903-stats-char-byte-metrics/spec.md
+  s_c64642615c89fc::t_7f920336c2e879 118
+  s_6a183ace1683aa::t_204334d6614efa 1-117
+tests/integration/stats_unit.rs
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 198-204,212-227,409-420,629-634,726-833,909-1178
+src/config.rs
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 22,193,283-284,354-355,678-683,1240-1246,1281,1316,1790-1792,1840,2087,2237,2764-2802
+.spine/agents/worker.md
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 1-122
+specs/903-stats-char-byte-metrics/research.md
+  s_6a183ace1683aa::t_3216f69e3d44e6 1-50
+.spine/.gitignore
+  s_4d3de6aeeb50a1::t_b2f5bfaa4d0e23 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.23",
+  "base_commit_sha": "55a29216f6c79508485f38a28d3a75573416e101",
+  "prompts": {},
+  "sessions": {
+    "s_4d3de6aeeb50a1": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-f8769ce5-6dff-43ae-87b1-62ebc3b33647",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    },
+    "s_6a183ace1683aa": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-b53a86b1-8856-4b3a-b388-0c00e460dd14",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    },
+    "s_c64642615c89fc": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "agent-3756caf9-353e-4651-b95f-3ddaafe68258",
+        "model": "unknown"
+      },
+      "human_author": "Test User <beettlle@gmail.com>"
+    }
+  }
+}
