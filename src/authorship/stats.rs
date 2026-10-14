@@ -6,7 +6,7 @@ use crate::git::repository::{Repository, exec_git};
 use crate::mdm::spinner::Spinner;
 use crate::utils::is_interactive_terminal;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const RECENT_COMMIT_WINDOW: Duration = Duration::from_secs(60);
@@ -20,6 +20,14 @@ pub struct ToolModelHeadlineStats {
     pub ai_additions: u32, // Number of lines committed with AI attribution
     #[serde(default)]
     pub ai_accepted: u32, // Number of AI-generated lines that were accepted by the user without any human edits
+    #[serde(default)]
+    pub ai_additions_chars: u64, // Character count of committed AI-attributed lines
+    #[serde(default)]
+    pub ai_additions_bytes: u64, // Byte count of committed AI-attributed lines
+    #[serde(default)]
+    pub ai_accepted_chars: u64, // Character count of AI lines accepted without human edits
+    #[serde(default)]
+    pub ai_accepted_bytes: u64, // Byte count of AI lines accepted without human edits
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -36,6 +44,30 @@ pub struct CommitStats {
     pub git_diff_deleted_lines: u32,
     #[serde(default)]
     pub git_diff_added_lines: u32,
+    #[serde(default)]
+    pub human_additions_chars: u64, // Character count of lines committed with human attribution
+    #[serde(default)]
+    pub human_additions_bytes: u64, // Byte count of lines committed with human attribution
+    #[serde(default)]
+    pub unknown_additions_chars: u64, // Character count of lines with no attestation at all
+    #[serde(default)]
+    pub unknown_additions_bytes: u64, // Byte count of lines with no attestation at all
+    #[serde(default)]
+    pub ai_additions_chars: u64, // Character count of lines committed with AI attribution
+    #[serde(default)]
+    pub ai_additions_bytes: u64, // Byte count of lines committed with AI attribution
+    #[serde(default)]
+    pub ai_accepted_chars: u64, // Character count of AI lines accepted without human edits
+    #[serde(default)]
+    pub ai_accepted_bytes: u64, // Byte count of AI lines accepted without human edits
+    #[serde(default)]
+    pub git_diff_added_chars: u64, // Character count of all added lines in the git diff
+    #[serde(default)]
+    pub git_diff_added_bytes: u64, // Byte count of all added lines in the git diff
+    #[serde(default)]
+    pub git_diff_deleted_chars: u64, // Character count of all deleted lines in the git diff
+    #[serde(default)]
+    pub git_diff_deleted_bytes: u64, // Byte count of all deleted lines in the git diff
     #[serde(default)]
     pub tool_model_breakdown: BTreeMap<String, ToolModelHeadlineStats>,
 }
@@ -424,6 +456,7 @@ pub fn stats_from_authorship_log(
         tool_model_breakdown: BTreeMap::new(),
         git_diff_deleted_lines,
         git_diff_added_lines,
+        ..Default::default()
     };
 
     // Update tool-level accepted counts using diff-based attribution.
@@ -590,15 +623,216 @@ pub fn accepted_lines_from_attestations(
 }
 
 #[doc(hidden)]
+pub fn count_line_payload_volume(payloads: &[String]) -> (u64, u64) {
+    // Returns (chars, bytes) for a set of counted line payloads.
+    //
+    // Each payload contributes `payload.chars().count() + 1` chars and
+    // `payload.len() + 1` bytes, where the +1 accounts for the synthetic LF
+    // (U+000A) that git-diff line semantics attach to every counted line.
+    // CRLF is never reconstructed; a literal '\r' inside a payload is counted
+    // verbatim. `DiffHunk` carries no "no newline at end of file" marker, so
+    // the synthetic LF is always added.
+    let mut chars = 0u64;
+    let mut bytes = 0u64;
+    for payload in payloads {
+        chars = chars.saturating_add(payload.chars().count() as u64 + 1);
+        bytes = bytes.saturating_add(payload.len() as u64 + 1);
+    }
+    (chars, bytes)
+}
+
+#[doc(hidden)]
 pub fn line_range_overlap_len(range: &LineRange, added_lines: &[u32]) -> u32 {
+    line_range_overlap_lines(range, added_lines).len() as u32
+}
+
+/// Return the sub-slice of the sorted `added_lines` that overlaps `range` —
+/// the shared overlap semantics behind `line_range_overlap_len`.
+fn line_range_overlap_lines<'a>(range: &LineRange, added_lines: &'a [u32]) -> &'a [u32] {
     match range {
-        LineRange::Single(line) => u32::from(added_lines.binary_search(line).is_ok()),
+        LineRange::Single(line) => match added_lines.binary_search(line) {
+            Ok(index) => &added_lines[index..index + 1],
+            Err(_) => &[],
+        },
         LineRange::Range(start, end) => {
             let start_idx = added_lines.partition_point(|line| *line < *start);
             let end_idx = added_lines.partition_point(|line| *line <= *end);
-            end_idx.saturating_sub(start_idx) as u32
+            &added_lines[start_idx..end_idx.max(start_idx)]
         }
     }
+}
+
+/// Char/byte volume for the three added-line buckets, classified with the same
+/// per-file line overlap as `accepted_lines_from_attestations`.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[doc(hidden)]
+pub struct AddedBucketVolume {
+    pub human_chars: u64,
+    pub human_bytes: u64,
+    pub unknown_chars: u64,
+    pub unknown_bytes: u64,
+    pub ai_chars: u64,
+    pub ai_bytes: u64,
+}
+
+/// Classify zipped added-line payloads into known-human / unknown / AI buckets
+/// and sum payload+LF volume per bucket. `added_payloads_by_file` maps each
+/// file to its (line number, payload) pairs sorted by line number. Unknown
+/// volume is the payload+LF of added lines with no attestation, not derived
+/// from the git-diff char/byte totals. Merge commits skip attestation
+/// (matching the line-stat merge skip), so every bucket stays 0.
+#[doc(hidden)]
+pub fn added_bucket_volume_from_attestations(
+    authorship_log: Option<&crate::authorship::authorship_log_serialization::AuthorshipLog>,
+    added_payloads_by_file: &HashMap<String, Vec<(u32, &str)>>,
+    is_merge_commit: bool,
+) -> AddedBucketVolume {
+    let mut volume = AddedBucketVolume::default();
+    if is_merge_commit {
+        return volume;
+    }
+
+    // Per-file attested line sets, built with the same overlap as
+    // `accepted_lines_from_attestations` (h_ = known human, anything else = AI).
+    let mut human_lines_by_file: HashMap<&str, HashSet<u32>> = HashMap::new();
+    let mut ai_lines_by_file: HashMap<&str, HashSet<u32>> = HashMap::new();
+    if let Some(log) = authorship_log {
+        for file_attestation in &log.attestations {
+            let Some(pairs) = added_payloads_by_file.get(&file_attestation.file_path) else {
+                continue;
+            };
+            let added_lines: Vec<u32> = pairs.iter().map(|(line, _)| *line).collect();
+            for entry in &file_attestation.entries {
+                let sets = if entry.hash.starts_with("h_") {
+                    &mut human_lines_by_file
+                } else {
+                    &mut ai_lines_by_file
+                };
+                let lines = sets.entry(file_attestation.file_path.as_str()).or_default();
+                for range in &entry.line_ranges {
+                    lines.extend(
+                        line_range_overlap_lines(range, &added_lines)
+                            .iter()
+                            .copied(),
+                    );
+                }
+            }
+        }
+    }
+
+    for (file_path, pairs) in added_payloads_by_file {
+        let human_lines = human_lines_by_file.get(file_path.as_str());
+        let ai_lines = ai_lines_by_file.get(file_path.as_str());
+        for &(line, payload) in pairs {
+            // Same payload + 1 synthetic LF rule as `count_line_payload_volume`.
+            let chars = payload.chars().count() as u64 + 1;
+            let bytes = payload.len() as u64 + 1;
+            // A line claimed by both a known-human and an AI entry (possible
+            // when checkpoints overlap) stays human, matching the h_-prefix
+            // precedence in `accepted_lines_from_attestations`.
+            let (bucket_chars, bucket_bytes) =
+                if human_lines.is_some_and(|lines| lines.contains(&line)) {
+                    (&mut volume.human_chars, &mut volume.human_bytes)
+                } else if ai_lines.is_some_and(|lines| lines.contains(&line)) {
+                    (&mut volume.ai_chars, &mut volume.ai_bytes)
+                } else {
+                    (&mut volume.unknown_chars, &mut volume.unknown_bytes)
+                };
+            *bucket_chars = bucket_chars.saturating_add(chars);
+            *bucket_bytes = bucket_bytes.saturating_add(bytes);
+        }
+    }
+
+    volume
+}
+
+/// Char/byte volume per tool/model, classified with the same per-tool line
+/// sets as the `ai_accepted` line headlines in
+/// `accepted_lines_from_attestations` (session `s_` hashes resolve through the
+/// sessions map, other non-`h_` hashes through the prompts map). Returns
+/// tool key -> (chars, bytes) where each counted line contributes its payload
+/// plus one synthetic LF, matching `count_line_payload_volume`. Merge commits
+/// and missing authorship logs return an empty map, matching the line
+/// headline behavior.
+#[doc(hidden)]
+pub fn tool_model_volume_from_attestations(
+    authorship_log: Option<&crate::authorship::authorship_log_serialization::AuthorshipLog>,
+    added_payloads_by_file: &HashMap<String, Vec<(u32, &str)>>,
+    is_merge_commit: bool,
+) -> BTreeMap<String, (u64, u64)> {
+    let mut volume = BTreeMap::new();
+    if is_merge_commit {
+        return volume;
+    }
+    let Some(log) = authorship_log else {
+        return volume;
+    };
+
+    // Per-tool attested line sets, resolved with the same tool key lookup and
+    // line overlap as `accepted_lines_from_attestations`.
+    let mut tool_lines_by_file: HashMap<(&str, String), HashSet<u32>> = HashMap::new();
+    for file_attestation in &log.attestations {
+        let Some(pairs) = added_payloads_by_file.get(&file_attestation.file_path) else {
+            continue;
+        };
+        let added_lines: Vec<u32> = pairs.iter().map(|(line, _)| *line).collect();
+        for entry in &file_attestation.entries {
+            // KnownHuman entries (h_ prefix) never map to an AI tool.
+            if entry.hash.starts_with("h_") {
+                continue;
+            }
+            let tool_model = if entry.hash.starts_with("s_") {
+                let session_key = entry.hash.split("::").next().unwrap_or(&entry.hash);
+                log.metadata
+                    .sessions
+                    .get(session_key)
+                    .map(|session_record| {
+                        format!(
+                            "{}::{}",
+                            session_record.agent_id.tool, session_record.agent_id.model
+                        )
+                    })
+            } else {
+                log.metadata.prompts.get(&entry.hash).map(|prompt_record| {
+                    format!(
+                        "{}::{}",
+                        prompt_record.agent_id.tool, prompt_record.agent_id.model
+                    )
+                })
+            };
+            let Some(tool_model) = tool_model else {
+                continue;
+            };
+            let lines = tool_lines_by_file
+                .entry((file_attestation.file_path.as_str(), tool_model))
+                .or_default();
+            for range in &entry.line_ranges {
+                lines.extend(
+                    line_range_overlap_lines(range, &added_lines)
+                        .iter()
+                        .copied(),
+                );
+            }
+        }
+    }
+
+    for ((file_path, tool_model), lines) in tool_lines_by_file {
+        let Some(pairs) = added_payloads_by_file.get(file_path) else {
+            continue;
+        };
+        let mut chars = 0u64;
+        let mut bytes = 0u64;
+        for &(line, payload) in pairs {
+            if lines.contains(&line) {
+                // Same payload + 1 synthetic LF rule as `count_line_payload_volume`.
+                chars = chars.saturating_add(payload.chars().count() as u64 + 1);
+                bytes = bytes.saturating_add(payload.len() as u64 + 1);
+            }
+        }
+        volume.insert(tool_model, (chars, bytes));
+    }
+
+    volume
 }
 
 /// Like `stats_for_commit_stats` but accepts pre-computed diff hunks and authorship log,
@@ -630,22 +864,114 @@ pub(crate) fn stats_for_commit_stats_from_hunks_with_merge_flag(
 ) -> CommitStats {
     let ignore_matcher = build_ignore_matcher(ignore_patterns);
 
-    let mut git_diff_added_lines = 0u32;
-    let mut git_diff_deleted_lines = 0u32;
-    let mut added_lines_by_file: HashMap<String, Vec<u32>> = HashMap::new();
-
+    // Per-hunk payload volume from the in-memory hunk text. Ignored files get
+    // `None` so the main loop can skip them without re-running the matcher.
+    struct HunkVolume {
+        added_chars: u64,
+        added_bytes: u64,
+        deleted_chars: u64,
+        deleted_bytes: u64,
+    }
+    let mut hunk_volumes: Vec<Option<HunkVolume>> = Vec::with_capacity(hunks.len());
+    // Per-file counted UTF-8 payload bytes (added + deleted line payloads,
+    // each counted line carrying one synthetic LF) for the cap check.
+    let mut payload_bytes_by_file: HashMap<&str, u64> = HashMap::new();
     for hunk in hunks {
         if should_ignore_file_with_matcher(&hunk.file_path, &ignore_matcher) {
+            hunk_volumes.push(None);
             continue;
         }
+        // Same min-length zip semantics as the main fold: binary hunks carry
+        // no contents and contribute 0 volume.
+        let added_zip_len = hunk.added_lines.len().min(hunk.added_contents.len());
+        let (added_chars, added_bytes) =
+            count_line_payload_volume(&hunk.added_contents[..added_zip_len]);
+        let deleted_zip_len = hunk.deleted_lines.len().min(hunk.deleted_contents.len());
+        let (deleted_chars, deleted_bytes) =
+            count_line_payload_volume(&hunk.deleted_contents[..deleted_zip_len]);
+        let file_bytes = payload_bytes_by_file
+            .entry(hunk.file_path.as_str())
+            .or_insert(0);
+        *file_bytes = file_bytes
+            .saturating_add(added_bytes)
+            .saturating_add(deleted_bytes);
+        hunk_volumes.push(Some(HunkVolume {
+            added_chars,
+            added_bytes,
+            deleted_chars,
+            deleted_bytes,
+        }));
+    }
+
+    // Files whose counted UTF-8 payload exceeds `stats_max_file_bytes` are
+    // cap-skipped: they add 0 to every `*_chars` / `*_bytes` field but keep
+    // their line counts. The skip is not an error.
+    let max_file_bytes = crate::config::Config::get().stats_max_file_bytes() as u64;
+    let mut cap_skipped_files: HashSet<&str> = HashSet::new();
+    for (file_path, payload_bytes) in &payload_bytes_by_file {
+        if *payload_bytes > max_file_bytes {
+            cap_skipped_files.insert(file_path);
+        }
+    }
+    if !cap_skipped_files.is_empty() {
+        let skipped = cap_skipped_files
+            .iter()
+            .map(|path| (*path).to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        tracing::debug!(
+            "stats: skipping char/byte volume for {} over-cap file(s) (stats_max_file_bytes={}): {}",
+            cap_skipped_files.len(),
+            max_file_bytes,
+            skipped
+        );
+    }
+
+    let mut git_diff_added_lines = 0u32;
+    let mut git_diff_deleted_lines = 0u32;
+    let mut git_diff_added_chars = 0u64;
+    let mut git_diff_added_bytes = 0u64;
+    let mut git_diff_deleted_chars = 0u64;
+    let mut git_diff_deleted_bytes = 0u64;
+    let mut added_lines_by_file: HashMap<String, Vec<u32>> = HashMap::new();
+    let mut added_payloads_by_file: HashMap<String, Vec<(u32, &str)>> = HashMap::new();
+
+    for (hunk, volume) in hunks.iter().zip(hunk_volumes.iter()) {
+        let Some(volume) = volume else {
+            continue;
+        };
+        // Line counts are unaffected by the cap skip.
         git_diff_added_lines += hunk.added_lines.len() as u32;
         git_diff_deleted_lines += hunk.deleted_lines.len() as u32;
+
+        let cap_skipped = cap_skipped_files.contains(hunk.file_path.as_str());
+        if !cap_skipped {
+            git_diff_added_chars = git_diff_added_chars.saturating_add(volume.added_chars);
+            git_diff_added_bytes = git_diff_added_bytes.saturating_add(volume.added_bytes);
+            git_diff_deleted_chars = git_diff_deleted_chars.saturating_add(volume.deleted_chars);
+            git_diff_deleted_bytes = git_diff_deleted_bytes.saturating_add(volume.deleted_bytes);
+        }
 
         if !is_merge_commit && !hunk.added_lines.is_empty() {
             added_lines_by_file
                 .entry(hunk.file_path.clone())
                 .or_default()
                 .extend(hunk.added_lines.iter().copied());
+            // Cap-skipped files keep their line buckets but add no char/byte
+            // volume.
+            if !cap_skipped {
+                let added_zip_len = hunk.added_lines.len().min(hunk.added_contents.len());
+                added_payloads_by_file
+                    .entry(hunk.file_path.clone())
+                    .or_default()
+                    .extend(
+                        hunk.added_lines[..added_zip_len].iter().copied().zip(
+                            hunk.added_contents[..added_zip_len]
+                                .iter()
+                                .map(String::as_str),
+                        ),
+                    );
+            }
         }
     }
 
@@ -653,18 +979,60 @@ pub(crate) fn stats_for_commit_stats_from_hunks_with_merge_flag(
         lines.sort_unstable();
         lines.dedup();
     }
+    for pairs in added_payloads_by_file.values_mut() {
+        pairs.sort_unstable_by_key(|(line, _)| *line);
+        pairs.dedup_by_key(|(line, _)| *line);
+    }
 
     let (ai_accepted, known_human_accepted, ai_accepted_by_tool) =
         accepted_lines_from_attestations(authorship_log, &added_lines_by_file, is_merge_commit);
 
-    stats_from_authorship_log(
+    let mut stats = stats_from_authorship_log(
         authorship_log,
         git_diff_added_lines,
         git_diff_deleted_lines,
         ai_accepted,
         known_human_accepted,
         &ai_accepted_by_tool,
-    )
+    );
+    stats.git_diff_added_chars = git_diff_added_chars;
+    stats.git_diff_added_bytes = git_diff_added_bytes;
+    stats.git_diff_deleted_chars = git_diff_deleted_chars;
+    stats.git_diff_deleted_bytes = git_diff_deleted_bytes;
+
+    // Bucket volume uses the same attestation overlap as the line buckets.
+    let bucket_volume = added_bucket_volume_from_attestations(
+        authorship_log,
+        &added_payloads_by_file,
+        is_merge_commit,
+    );
+    stats.human_additions_chars = bucket_volume.human_chars;
+    stats.human_additions_bytes = bucket_volume.human_bytes;
+    stats.unknown_additions_chars = bucket_volume.unknown_chars;
+    stats.unknown_additions_bytes = bucket_volume.unknown_bytes;
+    stats.ai_additions_chars = bucket_volume.ai_chars;
+    stats.ai_additions_bytes = bucket_volume.ai_bytes;
+    // ai_accepted mirrors ai_additions, matching the line fields.
+    stats.ai_accepted_chars = bucket_volume.ai_chars;
+    stats.ai_accepted_bytes = bucket_volume.ai_bytes;
+
+    // Tools only appear in the volume map when they have accepted lines, so
+    // every key matches an existing breakdown entry created from
+    // ai_accepted_by_tool.
+    let tool_volume = tool_model_volume_from_attestations(
+        authorship_log,
+        &added_payloads_by_file,
+        is_merge_commit,
+    );
+    for (tool_model, (chars, bytes)) in tool_volume {
+        if let Some(tool_stats) = stats.tool_model_breakdown.get_mut(&tool_model) {
+            tool_stats.ai_additions_chars = chars;
+            tool_stats.ai_additions_bytes = bytes;
+            tool_stats.ai_accepted_chars = chars;
+            tool_stats.ai_accepted_bytes = bytes;
+        }
+    }
+    stats
 }
 
 /// Get git diff statistics between commit and its parent
@@ -725,6 +1093,7 @@ mod tests {
             git_diff_deleted_lines: 15,
             git_diff_added_lines: 80,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
 
         let mixed_output = write_stats_to_terminal(&stats, false);
@@ -739,6 +1108,7 @@ mod tests {
             git_diff_deleted_lines: 0,
             git_diff_added_lines: 100,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
 
         let ai_only_output = write_stats_to_terminal(&ai_stats, false);
@@ -753,6 +1123,7 @@ mod tests {
             git_diff_deleted_lines: 10,
             git_diff_added_lines: 75,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
 
         let human_only_output = write_stats_to_terminal(&human_stats, false);
@@ -767,6 +1138,7 @@ mod tests {
             git_diff_deleted_lines: 0,
             git_diff_added_lines: 102,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
 
         let minimal_human_output = write_stats_to_terminal(&minimal_human_stats, false);
@@ -781,6 +1153,7 @@ mod tests {
             git_diff_deleted_lines: 25,
             git_diff_added_lines: 0,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
 
         let deletion_only_output = write_stats_to_terminal(&deletion_only_stats, false);
@@ -797,6 +1170,7 @@ mod tests {
             git_diff_deleted_lines: 0,
             git_diff_added_lines: 1000,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
         let with_untracked_output = write_stats_to_terminal(&untracked_stats, false);
         assert_debug_snapshot!(with_untracked_output);
@@ -810,6 +1184,7 @@ mod tests {
             git_diff_deleted_lines: 0,
             git_diff_added_lines: 100,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
         let untracked_at_threshold_output = write_stats_to_terminal(&threshold_stats, false);
         assert_debug_snapshot!(untracked_at_threshold_output);
@@ -823,6 +1198,7 @@ mod tests {
             git_diff_deleted_lines: 0,
             git_diff_added_lines: 99,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
         let untracked_just_above_output = write_stats_to_terminal(&above_threshold_stats, false);
         assert_debug_snapshot!(untracked_just_above_output);
@@ -836,6 +1212,7 @@ mod tests {
             git_diff_deleted_lines: 0,
             git_diff_added_lines: 100,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
         let all_untracked_output = write_stats_to_terminal(&all_untracked_stats, false);
         assert_debug_snapshot!(all_untracked_output);
@@ -865,6 +1242,7 @@ mod tests {
             git_diff_deleted_lines: 15,
             git_diff_added_lines: 80,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
 
         let mixed_output = write_stats_to_markdown(&stats);
@@ -879,6 +1257,7 @@ mod tests {
             git_diff_deleted_lines: 0,
             git_diff_added_lines: 100,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
 
         let ai_only_output = write_stats_to_markdown(&ai_stats);
@@ -893,6 +1272,7 @@ mod tests {
             git_diff_deleted_lines: 10,
             git_diff_added_lines: 75,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
 
         let human_only_output = write_stats_to_markdown(&human_stats);
@@ -907,6 +1287,7 @@ mod tests {
             git_diff_deleted_lines: 0,
             git_diff_added_lines: 102,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
 
         let minimal_human_output = write_stats_to_markdown(&minimal_human_stats);
@@ -921,6 +1302,7 @@ mod tests {
             git_diff_deleted_lines: 25,
             git_diff_added_lines: 0,
             tool_model_breakdown: BTreeMap::new(),
+            ..Default::default()
         };
 
         let deletion_only_output = write_stats_to_markdown(&deletion_only_stats);
