@@ -61,6 +61,87 @@ fn get_json(repo: &TestRepo, key: &str) -> Value {
         .unwrap_or_else(|e| panic!("config get {key} returned non-JSON {out:?}: {e}"))
 }
 
+fn get_json_with_env(repo: &TestRepo, key: &str, envs: &[(&str, &str)]) -> Value {
+    let out = repo
+        .git_ai_with_env(&["config", key], envs)
+        .unwrap_or_else(|e| panic!("config get {key} failed: {e}"));
+    serde_json::from_str(out.trim())
+        .unwrap_or_else(|e| panic!("config get {key} returned non-JSON {out:?}: {e}"))
+}
+
+#[test]
+fn test_api_key_defaults_unconfigured_notes_backend_to_http() {
+    let repo = TestRepo::new();
+
+    assert_eq!(
+        get_json(&repo, "notes_backend.kind"),
+        Value::String("git_notes".to_string())
+    );
+
+    repo.git_ai(&["config", "set", "api_base_url", "https://api.example.com"])
+        .expect("set API base URL");
+    repo.git_ai(&["config", "set", "api_key", "test-api-key"])
+        .expect("set api key");
+
+    assert_eq!(
+        get_json(&repo, "notes_backend.kind"),
+        Value::String("http".to_string())
+    );
+    assert_eq!(
+        get_json(&repo, "notes_backend.backend_url"),
+        Value::String("https://api.example.com".to_string())
+    );
+}
+
+#[test]
+fn test_api_key_preserves_existing_notes_backend_config() {
+    let repo = TestRepo::new();
+
+    repo.git_ai(&[
+        "config",
+        "set",
+        "notes_backend.backend_url",
+        "https://notes.example.com",
+    ])
+    .expect("set notes backend URL");
+    repo.git_ai(&["config", "set", "api_key", "test-api-key"])
+        .expect("set api key");
+
+    assert_eq!(
+        get_json(&repo, "notes_backend.kind"),
+        Value::String("git_notes".to_string())
+    );
+    assert_eq!(
+        get_json(&repo, "notes_backend.backend_url"),
+        Value::String("https://notes.example.com".to_string())
+    );
+
+    assert_eq!(
+        get_json_with_env(
+            &repo,
+            "notes_backend.kind",
+            &[
+                ("GIT_AI_API_KEY", "env-api-key"),
+                ("GIT_AI_NOTES_BACKEND_KIND", "http"),
+            ],
+        ),
+        Value::String("http".to_string())
+    );
+
+    let env_configured_repo = TestRepo::new();
+    assert_eq!(
+        get_json_with_env(
+            &env_configured_repo,
+            "notes_backend.kind",
+            &[
+                ("GIT_AI_API_KEY", "env-api-key"),
+                ("GIT_AI_NOTES_BACKEND_URL", "https://notes.example.com"),
+            ],
+        ),
+        Value::String("git_notes".to_string())
+    );
+}
+
 #[test]
 fn test_config_allow_superuser_set_get_unset() {
     let repo = TestRepo::new();
@@ -355,6 +436,7 @@ fn fully_populated_file_config() -> FileConfig {
         include_prompts_in_repositories: Some(vec!["*".to_string()]),
         allow_repositories: Some(vec!["*".to_string()]),
         exclude_repositories: Some(vec!["*".to_string()]),
+        untraced_fixup_ignored_paths: Some(vec!["*-scratch/.git".to_string()]),
         telemetry_oss: Some("off".to_string()),
         telemetry_enterprise_dsn: Some("https://example.com".to_string()),
         disable_version_checks: Some(true),
@@ -379,6 +461,7 @@ fn fully_populated_file_config() -> FileConfig {
         max_checkpoint_file_size_bytes: Some(3 * 1024 * 1024),
         max_checkpoint_total_size_bytes: Some(32 * 1024 * 1024),
         max_checkpoint_total_lines: Some(500_000),
+        stats_max_file_bytes: Some(3 * 1024 * 1024),
         daemon_memory_limit_mb: Some(1024),
     }
 }

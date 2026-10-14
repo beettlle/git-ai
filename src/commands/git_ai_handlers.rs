@@ -51,6 +51,7 @@ pub fn handle_git_ai(args: &[String]) {
             | "upgrade"
             | "install-hooks"
             | "install"
+            | "uninstall"
             | "uninstall-hooks"
             | "usage"
     );
@@ -167,7 +168,8 @@ pub fn handle_git_ai(args: &[String]) {
                 std::process::exit(1);
             }
         },
-        "uninstall-hooks" => match commands::install_hooks::run_uninstall(&args[1..]) {
+        "uninstall" | "uninstall-hooks" => match commands::install_hooks::run_uninstall(&args[1..])
+        {
             Ok(statuses) => {
                 if let Ok(statuses_value) = serde_json::to_value(&statuses) {
                     log_message("uninstall-hooks", "info", Some(statuses_value));
@@ -189,6 +191,9 @@ pub fn handle_git_ai(args: &[String]) {
         }
         "flush-metrics-db" => {
             commands::flush_metrics_db::handle_flush_metrics_db(&args[1..]);
+        }
+        "reingest" => {
+            commands::reingest::handle_reingest(&args[1..]);
         }
         "await" => {
             commands::r#await::handle_await(&args[1..]);
@@ -375,12 +380,17 @@ fn print_help() {
     eprintln!("    --skills               Also install agent skill files");
     eprintln!("    --visual-studio-extension");
     eprintln!("                           Also install the Visual Studio extension on Windows");
-    eprintln!("  uninstall-hooks    Remove git-ai hooks from all detected tools");
+    eprintln!("  uninstall, uninstall-hooks");
+    eprintln!("                       Remove git-ai hooks from all detected tools");
     eprintln!("  ci                 Continuous integration utilities");
     eprintln!("    github                 GitHub CI helpers");
     eprintln!("  git-path           Print the path to the underlying git executable");
     eprintln!("  await [beta]       Wait for the background service to finish all work");
     eprintln!("    --timeout <seconds>    Maximum time to wait (default: 30)");
+    eprintln!("  reingest           Redeliver locally stored metric events");
+    eprintln!("    --all                  Reingest all retained events");
+    eprintln!("    --from <time> --to <time>  Reingest an RFC3339 [from, to) range");
+    eprintln!("    --since <duration>      Reingest a recent s/m/h/d/w duration");
     eprintln!("  upgrade            Check for updates and install if available");
     eprintln!("    --force               Reinstall latest version even if already up to date");
     eprintln!("  fetch-notes [remote] Synchronously fetch AI authorship notes");

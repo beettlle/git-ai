@@ -7,8 +7,9 @@ use serde::Serialize;
 use crate::authorship::diff_ai_accepted::diff_ai_accepted_stats;
 use crate::authorship::ignore::{build_ignore_matcher, should_ignore_file_with_matcher};
 use crate::authorship::stats::{
-    CommitStats, accepted_lines_from_attestations, stats_for_commit_stats,
-    stats_from_authorship_log,
+    AddedBucketVolume, CommitStats, accepted_lines_from_attestations,
+    added_bucket_volume_from_attestations, added_payload_volume, ai_volume_from_line_tool_models,
+    apply_added_volume, fold_diff_hunks, stats_for_commit_stats, stats_from_authorship_log,
 };
 use crate::error::GitAiError;
 use crate::git::notes_api::{CommitAuthorship, filter_commits_with_notes};
@@ -343,58 +344,6 @@ fn get_committed_files_content(
     Ok(files)
 }
 
-/// Get git diff statistics for a commit range (start..end)
-fn get_git_diff_stats_for_range(
-    repo: &Repository,
-    start_sha: &str,
-    end_sha: &str,
-    ignore_patterns: &[String],
-) -> Result<(u32, u32), GitAiError> {
-    // Use git diff --numstat to get diff statistics for the range
-    let mut args = repo.global_args_for_exec();
-    args.push("diff".to_string());
-    args.push("--numstat".to_string());
-    args.push(format!("{}..{}", start_sha, end_sha));
-
-    let output = exec_git_with_profile(&args, InternalGitProfile::NumstatParse)?;
-    let stdout = String::from_utf8_lossy(&output.stdout);
-
-    let mut added_lines = 0u32;
-    let mut deleted_lines = 0u32;
-    let ignore_matcher = build_ignore_matcher(ignore_patterns);
-
-    // Parse numstat output
-    for line in stdout.lines() {
-        if line.trim().is_empty() {
-            continue;
-        }
-
-        // Parse numstat format: "added\tdeleted\tfilename"
-        let parts: Vec<&str> = line.split('\t').collect();
-        if parts.len() >= 3 {
-            // Check if this file should be ignored and skip it
-            let filename = parts[2];
-            if should_ignore_file_with_matcher(filename, &ignore_matcher) {
-                continue;
-            }
-
-            // Parse added lines
-            if let Ok(added) = parts[0].parse::<u32>() {
-                added_lines += added;
-            }
-
-            // Parse deleted lines (handle "-" for binary files)
-            if parts[1] != "-"
-                && let Ok(deleted) = parts[1].parse::<u32>()
-            {
-                deleted_lines += deleted;
-            }
-        }
-    }
-
-    Ok((added_lines, deleted_lines))
-}
-
 /// Calculate AI vs human line contributions for a commit range
 /// Uses VirtualAttributions approach to create an in-memory squash
 fn calculate_range_stats_direct(
@@ -410,9 +359,10 @@ fn calculate_range_stats_direct(
         return stats_for_commit_stats(repo, &end_sha, ignore_patterns);
     }
 
-    // Step 1: Get git diff stats between start and end
-    let (git_diff_added_lines, git_diff_deleted_lines) =
-        get_git_diff_stats_for_range(repo, &start_sha, &end_sha, ignore_patterns)?;
+    // Step 1: One unified diff for the whole range (one git spawn) is the
+    // source for both git-diff line totals and char/byte volume.
+    let hunks = crate::commands::diff::get_diff_with_line_numbers(repo, &start_sha, &end_sha)?;
+    let fold = fold_diff_hunks(&hunks, ignore_patterns, false);
 
     let diff_ai_stats = diff_ai_accepted_stats(repo, &start_sha, &end_sha, None, ignore_patterns)?;
 
@@ -428,13 +378,36 @@ fn calculate_range_stats_direct(
     );
 
     // Step 3: Calculate stats from the authorship log
-    let stats = stats_from_authorship_log(
+    let mut stats = stats_from_authorship_log(
         Some(&authorship_log),
-        git_diff_added_lines,
-        git_diff_deleted_lines,
+        fold.git_diff_added_lines,
+        fold.git_diff_deleted_lines,
         diff_ai_stats.total_ai_accepted,
         known_human_accepted,
         &diff_ai_stats.per_tool_model,
+    );
+
+    // Step 4: Char/byte fields use the same sources as the line fields:
+    // AI and per-tool volume from the blamed AI lines, known-human volume from
+    // the range authorship log, and unknown = total - ai - human.
+    fold.apply_git_diff_volume(&mut stats);
+    let (ai_volume, tool_volume) = ai_volume_from_line_tool_models(
+        &diff_ai_stats.ai_tool_model_by_line,
+        &fold.added_payloads_by_file,
+    );
+    let human_bucket = added_bucket_volume_from_attestations(
+        Some(&authorship_log),
+        &fold.added_payloads_by_file,
+        false,
+    );
+    apply_added_volume(
+        &mut stats,
+        AddedBucketVolume::from_totals(
+            added_payload_volume(&fold.added_payloads_by_file),
+            (human_bucket.human_chars, human_bucket.human_bytes),
+            ai_volume,
+        ),
+        tool_volume,
     );
 
     Ok(stats)
