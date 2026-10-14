@@ -7,9 +7,9 @@ use serde::Serialize;
 use crate::authorship::diff_ai_accepted::diff_ai_accepted_stats;
 use crate::authorship::ignore::{build_ignore_matcher, should_ignore_file_with_matcher};
 use crate::authorship::stats::{
-    CommitStats, accepted_lines_from_attestations, added_bucket_volume_from_attestations,
-    count_line_payload_volume, stats_for_commit_stats, stats_from_authorship_log,
-    tool_model_volume_from_attestations,
+    AddedBucketVolume, CommitStats, accepted_lines_from_attestations,
+    added_bucket_volume_from_attestations, added_payload_volume, ai_volume_from_line_tool_models,
+    apply_added_volume, fold_diff_hunks, stats_for_commit_stats, stats_from_authorship_log,
 };
 use crate::error::GitAiError;
 use crate::git::notes_api::{CommitAuthorship, filter_commits_with_notes};
@@ -362,54 +362,7 @@ fn calculate_range_stats_direct(
     // Step 1: One unified diff for the whole range (one git spawn) is the
     // source for both git-diff line totals and char/byte volume.
     let hunks = crate::commands::diff::get_diff_with_line_numbers(repo, &start_sha, &end_sha)?;
-    let ignore_matcher = build_ignore_matcher(ignore_patterns);
-
-    let mut git_diff_added_lines = 0u32;
-    let mut git_diff_deleted_lines = 0u32;
-    let mut git_diff_added_chars = 0u64;
-    let mut git_diff_added_bytes = 0u64;
-    let mut git_diff_deleted_chars = 0u64;
-    let mut git_diff_deleted_bytes = 0u64;
-    let mut added_payloads_by_file: HashMap<String, Vec<(u32, &str)>> = HashMap::new();
-
-    for hunk in &hunks {
-        if should_ignore_file_with_matcher(&hunk.file_path, &ignore_matcher) {
-            continue;
-        }
-        git_diff_added_lines += hunk.added_lines.len() as u32;
-        git_diff_deleted_lines += hunk.deleted_lines.len() as u32;
-
-        // Same min-length zip and payload+LF rule as
-        // `stats_for_commit_stats_from_hunks_with_merge_flag`; binary hunks
-        // carry no contents and contribute 0 volume.
-        let added_zip_len = hunk.added_lines.len().min(hunk.added_contents.len());
-        let (added_chars, added_bytes) =
-            count_line_payload_volume(&hunk.added_contents[..added_zip_len]);
-        git_diff_added_chars = git_diff_added_chars.saturating_add(added_chars);
-        git_diff_added_bytes = git_diff_added_bytes.saturating_add(added_bytes);
-
-        let deleted_zip_len = hunk.deleted_lines.len().min(hunk.deleted_contents.len());
-        let (deleted_chars, deleted_bytes) =
-            count_line_payload_volume(&hunk.deleted_contents[..deleted_zip_len]);
-        git_diff_deleted_chars = git_diff_deleted_chars.saturating_add(deleted_chars);
-        git_diff_deleted_bytes = git_diff_deleted_bytes.saturating_add(deleted_bytes);
-
-        // Bucket volume is computed from these (line, payload) pairs below.
-        added_payloads_by_file
-            .entry(hunk.file_path.clone())
-            .or_default()
-            .extend(
-                hunk.added_lines[..added_zip_len].iter().copied().zip(
-                    hunk.added_contents[..added_zip_len]
-                        .iter()
-                        .map(String::as_str),
-                ),
-            );
-    }
-    for pairs in added_payloads_by_file.values_mut() {
-        pairs.sort_unstable_by_key(|(line, _)| *line);
-        pairs.dedup_by_key(|(line, _)| *line);
-    }
+    let fold = fold_diff_hunks(&hunks, ignore_patterns, false);
 
     let diff_ai_stats = diff_ai_accepted_stats(repo, &start_sha, &end_sha, None, ignore_patterns)?;
 
@@ -427,47 +380,35 @@ fn calculate_range_stats_direct(
     // Step 3: Calculate stats from the authorship log
     let mut stats = stats_from_authorship_log(
         Some(&authorship_log),
-        git_diff_added_lines,
-        git_diff_deleted_lines,
+        fold.git_diff_added_lines,
+        fold.git_diff_deleted_lines,
         diff_ai_stats.total_ai_accepted,
         known_human_accepted,
         &diff_ai_stats.per_tool_model,
     );
 
-    // Step 4: Char/byte fields use the same range-squashed authorship log as
-    // the line buckets, so unattested lines count as unknown, never AI.
-    stats.git_diff_added_chars = git_diff_added_chars;
-    stats.git_diff_added_bytes = git_diff_added_bytes;
-    stats.git_diff_deleted_chars = git_diff_deleted_chars;
-    stats.git_diff_deleted_bytes = git_diff_deleted_bytes;
-
-    let bucket_volume = added_bucket_volume_from_attestations(
+    // Step 4: Char/byte fields use the same sources as the line fields:
+    // AI and per-tool volume from the blamed AI lines, known-human volume from
+    // the range authorship log, and unknown = total - ai - human.
+    fold.apply_git_diff_volume(&mut stats);
+    let (ai_volume, tool_volume) = ai_volume_from_line_tool_models(
+        &diff_ai_stats.ai_tool_model_by_line,
+        &fold.added_payloads_by_file,
+    );
+    let human_bucket = added_bucket_volume_from_attestations(
         Some(&authorship_log),
-        &added_payloads_by_file,
+        &fold.added_payloads_by_file,
         false,
     );
-    stats.human_additions_chars = bucket_volume.human_chars;
-    stats.human_additions_bytes = bucket_volume.human_bytes;
-    stats.unknown_additions_chars = bucket_volume.unknown_chars;
-    stats.unknown_additions_bytes = bucket_volume.unknown_bytes;
-    stats.ai_additions_chars = bucket_volume.ai_chars;
-    stats.ai_additions_bytes = bucket_volume.ai_bytes;
-    // ai_accepted mirrors ai_additions, matching the line fields.
-    stats.ai_accepted_chars = bucket_volume.ai_chars;
-    stats.ai_accepted_bytes = bucket_volume.ai_bytes;
-
-    // Tools only appear in the volume map when they have accepted lines, so
-    // every key matches an existing breakdown entry.
-    let tool_volume =
-        tool_model_volume_from_attestations(Some(&authorship_log), &added_payloads_by_file, false);
-    for (tool_model, (chars, bytes)) in tool_volume {
-        if let Some(tool_stats) = stats.tool_model_breakdown.get_mut(&tool_model) {
-            tool_stats.ai_additions_chars = chars;
-            tool_stats.ai_additions_bytes = bytes;
-            tool_stats.ai_accepted_chars = chars;
-            tool_stats.ai_accepted_bytes = bytes;
-        }
-    }
+    apply_added_volume(
+        &mut stats,
+        AddedBucketVolume::from_totals(
+            added_payload_volume(&fold.added_payloads_by_file),
+            (human_bucket.human_chars, human_bucket.human_bytes),
+            ai_volume,
+        ),
+        tool_volume,
+    );
 
     Ok(stats)
 }

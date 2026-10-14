@@ -599,27 +599,28 @@ pub fn accepted_lines_from_attestations(
 
             total_ai_accepted += accepted;
 
-            // Session entries (s_ prefix): look up in sessions map
-            if entry.hash.starts_with("s_") {
-                let session_key = entry.hash.split("::").next().unwrap_or(&entry.hash);
-                if let Some(session_record) = log.metadata.sessions.get(session_key) {
-                    let tool_model = format!(
-                        "{}::{}",
-                        session_record.agent_id.tool, session_record.agent_id.model
-                    );
-                    *per_tool_model.entry(tool_model).or_insert(0) += accepted;
-                }
-            } else if let Some(prompt_record) = log.metadata.prompts.get(&entry.hash) {
-                let tool_model = format!(
-                    "{}::{}",
-                    prompt_record.agent_id.tool, prompt_record.agent_id.model
-                );
+            if let Some(tool_model) = entry_tool_model(log, &entry.hash) {
                 *per_tool_model.entry(tool_model).or_insert(0) += accepted;
             }
         }
     }
 
     (total_ai_accepted, known_human_accepted, per_tool_model)
+}
+
+/// Resolve a non-`h_` attestation hash to its `tool::model` key: session
+/// (`s_`) hashes through the sessions map, other hashes through the prompts map.
+fn entry_tool_model(
+    log: &crate::authorship::authorship_log_serialization::AuthorshipLog,
+    hash: &str,
+) -> Option<String> {
+    let agent_id = if hash.starts_with("s_") {
+        let session_key = hash.split("::").next().unwrap_or(hash);
+        &log.metadata.sessions.get(session_key)?.agent_id
+    } else {
+        &log.metadata.prompts.get(hash)?.agent_id
+    };
+    Some(format!("{}::{}", agent_id.tool, agent_id.model))
 }
 
 #[doc(hidden)]
@@ -643,27 +644,67 @@ pub fn count_line_payload_volume(payloads: &[String]) -> (u64, u64) {
 
 #[doc(hidden)]
 pub fn line_range_overlap_len(range: &LineRange, added_lines: &[u32]) -> u32 {
-    line_range_overlap_lines(range, added_lines).len() as u32
+    line_range_overlap_indices(range, added_lines).len() as u32
 }
 
-/// Return the sub-slice of the sorted `added_lines` that overlaps `range` —
-/// the shared overlap semantics behind `line_range_overlap_len`.
-fn line_range_overlap_lines<'a>(range: &LineRange, added_lines: &'a [u32]) -> &'a [u32] {
+/// Index range of the sorted `added_lines` that overlaps `range` — the shared
+/// overlap semantics behind `line_range_overlap_len` and the volume helpers.
+fn line_range_overlap_indices(range: &LineRange, added_lines: &[u32]) -> std::ops::Range<usize> {
     match range {
         LineRange::Single(line) => match added_lines.binary_search(line) {
-            Ok(index) => &added_lines[index..index + 1],
-            Err(_) => &[],
+            Ok(index) => index..index + 1,
+            Err(_) => 0..0,
         },
         LineRange::Range(start, end) => {
             let start_idx = added_lines.partition_point(|line| *line < *start);
             let end_idx = added_lines.partition_point(|line| *line <= *end);
-            &added_lines[start_idx..end_idx.max(start_idx)]
+            start_idx..end_idx.max(start_idx)
         }
     }
 }
 
-/// Char/byte volume for the three added-line buckets, classified with the same
-/// per-file line overlap as `accepted_lines_from_attestations`.
+/// Payload+LF volume of the (line, payload) pairs, using the same rule as
+/// `count_line_payload_volume`.
+fn pair_payload_volume(pairs: &[(u32, &str)]) -> (u64, u64) {
+    pairs
+        .iter()
+        .fold((0u64, 0u64), |(chars, bytes), (_, payload)| {
+            (
+                chars.saturating_add(payload.chars().count() as u64 + 1),
+                bytes.saturating_add(payload.len() as u64 + 1),
+            )
+        })
+}
+
+/// Call `visit(entry hash, chars, bytes)` once per attestation entry with the
+/// payload volume of the added lines that entry overlaps. Each entry is
+/// measured on its own, like the per-entry line sums in
+/// `accepted_lines_from_attestations`.
+fn for_each_entry_overlap_volume(
+    log: &crate::authorship::authorship_log_serialization::AuthorshipLog,
+    added_payloads_by_file: &HashMap<String, Vec<(u32, &str)>>,
+    mut visit: impl FnMut(&str, u64, u64),
+) {
+    for file_attestation in &log.attestations {
+        let Some(pairs) = added_payloads_by_file.get(&file_attestation.file_path) else {
+            continue;
+        };
+        let added_lines: Vec<u32> = pairs.iter().map(|(line, _)| *line).collect();
+        for entry in &file_attestation.entries {
+            let (chars, bytes) = entry.line_ranges.iter().fold((0u64, 0u64), |acc, range| {
+                let overlap = &pairs[line_range_overlap_indices(range, &added_lines)];
+                let (chars, bytes) = pair_payload_volume(overlap);
+                (acc.0.saturating_add(chars), acc.1.saturating_add(bytes))
+            });
+            if chars > 0 || bytes > 0 {
+                visit(&entry.hash, chars, bytes);
+            }
+        }
+    }
+}
+
+/// Char/byte volume for the three added-line buckets, computed with the same
+/// formula as the line buckets in `stats_from_authorship_log`.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 #[doc(hidden)]
 pub struct AddedBucketVolume {
@@ -675,92 +716,79 @@ pub struct AddedBucketVolume {
     pub ai_bytes: u64,
 }
 
-/// Classify zipped added-line payloads into known-human / unknown / AI buckets
-/// and sum payload+LF volume per bucket. `added_payloads_by_file` maps each
-/// file to its (line number, payload) pairs sorted by line number. Unknown
-/// volume is the payload+LF of added lines with no attestation, not derived
-/// from the git-diff char/byte totals. Merge commits skip attestation
-/// (matching the line-stat merge skip), so every bucket stays 0.
+impl AddedBucketVolume {
+    /// Build the buckets from total, known-human, and AI (chars, bytes).
+    /// Unknown is total - ai - human (saturating), the same formula as
+    /// `unknown_additions`.
+    pub(crate) fn from_totals(total: (u64, u64), human: (u64, u64), ai: (u64, u64)) -> Self {
+        Self {
+            human_chars: human.0,
+            human_bytes: human.1,
+            unknown_chars: total.0.saturating_sub(ai.0).saturating_sub(human.0),
+            unknown_bytes: total.1.saturating_sub(ai.1).saturating_sub(human.1),
+            ai_chars: ai.0,
+            ai_bytes: ai.1,
+        }
+    }
+}
+
+/// Total payload+LF volume of every added line in `added_payloads_by_file`.
+pub(crate) fn added_payload_volume(
+    added_payloads_by_file: &HashMap<String, Vec<(u32, &str)>>,
+) -> (u64, u64) {
+    added_payloads_by_file
+        .values()
+        .map(|pairs| pair_payload_volume(pairs))
+        .fold((0u64, 0u64), |acc, (chars, bytes)| {
+            (acc.0.saturating_add(chars), acc.1.saturating_add(bytes))
+        })
+}
+
+/// Sum payload+LF volume into the known-human / unknown / AI buckets.
+/// `added_payloads_by_file` maps each file to its (line number, payload) pairs
+/// sorted by line number. Known-human (`h_`) and AI (any other hash) volume is
+/// summed per attestation entry, and unknown is total - ai - human, so every
+/// bucket follows the same formula as its line field. Merge commits skip
+/// attestation (matching the line-stat merge skip), so every bucket stays 0.
 #[doc(hidden)]
 pub fn added_bucket_volume_from_attestations(
     authorship_log: Option<&crate::authorship::authorship_log_serialization::AuthorshipLog>,
     added_payloads_by_file: &HashMap<String, Vec<(u32, &str)>>,
     is_merge_commit: bool,
 ) -> AddedBucketVolume {
-    let mut volume = AddedBucketVolume::default();
     if is_merge_commit {
-        return volume;
+        return AddedBucketVolume::default();
     }
 
-    // Per-file attested line sets, built with the same overlap as
-    // `accepted_lines_from_attestations` (h_ = known human, anything else = AI).
-    let mut human_lines_by_file: HashMap<&str, HashSet<u32>> = HashMap::new();
-    let mut ai_lines_by_file: HashMap<&str, HashSet<u32>> = HashMap::new();
+    let mut human = (0u64, 0u64);
+    let mut ai = (0u64, 0u64);
     if let Some(log) = authorship_log {
-        for file_attestation in &log.attestations {
-            let Some(pairs) = added_payloads_by_file.get(&file_attestation.file_path) else {
-                continue;
+        for_each_entry_overlap_volume(log, added_payloads_by_file, |hash, chars, bytes| {
+            let bucket = if hash.starts_with("h_") {
+                &mut human
+            } else {
+                &mut ai
             };
-            let added_lines: Vec<u32> = pairs.iter().map(|(line, _)| *line).collect();
-            for entry in &file_attestation.entries {
-                let sets = if entry.hash.starts_with("h_") {
-                    &mut human_lines_by_file
-                } else {
-                    &mut ai_lines_by_file
-                };
-                let lines = sets.entry(file_attestation.file_path.as_str()).or_default();
-                for range in &entry.line_ranges {
-                    lines.extend(
-                        line_range_overlap_lines(range, &added_lines)
-                            .iter()
-                            .copied(),
-                    );
-                }
-            }
-        }
+            bucket.0 = bucket.0.saturating_add(chars);
+            bucket.1 = bucket.1.saturating_add(bytes);
+        });
     }
 
-    for (file_path, pairs) in added_payloads_by_file {
-        let human_lines = human_lines_by_file.get(file_path.as_str());
-        let ai_lines = ai_lines_by_file.get(file_path.as_str());
-        for &(line, payload) in pairs {
-            // Same payload + 1 synthetic LF rule as `count_line_payload_volume`.
-            let chars = payload.chars().count() as u64 + 1;
-            let bytes = payload.len() as u64 + 1;
-            // A line claimed by both a known-human and an AI entry (possible
-            // when checkpoints overlap) stays human, matching the h_-prefix
-            // precedence in `accepted_lines_from_attestations`.
-            let (bucket_chars, bucket_bytes) =
-                if human_lines.is_some_and(|lines| lines.contains(&line)) {
-                    (&mut volume.human_chars, &mut volume.human_bytes)
-                } else if ai_lines.is_some_and(|lines| lines.contains(&line)) {
-                    (&mut volume.ai_chars, &mut volume.ai_bytes)
-                } else {
-                    (&mut volume.unknown_chars, &mut volume.unknown_bytes)
-                };
-            *bucket_chars = bucket_chars.saturating_add(chars);
-            *bucket_bytes = bucket_bytes.saturating_add(bytes);
-        }
-    }
-
-    volume
+    AddedBucketVolume::from_totals(added_payload_volume(added_payloads_by_file), human, ai)
 }
 
-/// Char/byte volume per tool/model, classified with the same per-tool line
-/// sets as the `ai_accepted` line headlines in
-/// `accepted_lines_from_attestations` (session `s_` hashes resolve through the
-/// sessions map, other non-`h_` hashes through the prompts map). Returns
-/// tool key -> (chars, bytes) where each counted line contributes its payload
-/// plus one synthetic LF, matching `count_line_payload_volume`. Merge commits
-/// and missing authorship logs return an empty map, matching the line
-/// headline behavior.
+/// Char/byte volume per tool/model, summed per attestation entry with the same
+/// tool key lookup as the per-tool line counts in
+/// `accepted_lines_from_attestations`. Returns tool key -> (chars, bytes).
+/// Merge commits and missing authorship logs return an empty map, matching
+/// the line headline behavior.
 #[doc(hidden)]
 pub fn tool_model_volume_from_attestations(
     authorship_log: Option<&crate::authorship::authorship_log_serialization::AuthorshipLog>,
     added_payloads_by_file: &HashMap<String, Vec<(u32, &str)>>,
     is_merge_commit: bool,
 ) -> BTreeMap<String, (u64, u64)> {
-    let mut volume = BTreeMap::new();
+    let mut volume: BTreeMap<String, (u64, u64)> = BTreeMap::new();
     if is_merge_commit {
         return volume;
     }
@@ -768,71 +796,48 @@ pub fn tool_model_volume_from_attestations(
         return volume;
     };
 
-    // Per-tool attested line sets, resolved with the same tool key lookup and
-    // line overlap as `accepted_lines_from_attestations`.
-    let mut tool_lines_by_file: HashMap<(&str, String), HashSet<u32>> = HashMap::new();
-    for file_attestation in &log.attestations {
-        let Some(pairs) = added_payloads_by_file.get(&file_attestation.file_path) else {
-            continue;
-        };
-        let added_lines: Vec<u32> = pairs.iter().map(|(line, _)| *line).collect();
-        for entry in &file_attestation.entries {
-            // KnownHuman entries (h_ prefix) never map to an AI tool.
-            if entry.hash.starts_with("h_") {
-                continue;
-            }
-            let tool_model = if entry.hash.starts_with("s_") {
-                let session_key = entry.hash.split("::").next().unwrap_or(&entry.hash);
-                log.metadata
-                    .sessions
-                    .get(session_key)
-                    .map(|session_record| {
-                        format!(
-                            "{}::{}",
-                            session_record.agent_id.tool, session_record.agent_id.model
-                        )
-                    })
-            } else {
-                log.metadata.prompts.get(&entry.hash).map(|prompt_record| {
-                    format!(
-                        "{}::{}",
-                        prompt_record.agent_id.tool, prompt_record.agent_id.model
-                    )
-                })
-            };
-            let Some(tool_model) = tool_model else {
-                continue;
-            };
-            let lines = tool_lines_by_file
-                .entry((file_attestation.file_path.as_str(), tool_model))
-                .or_default();
-            for range in &entry.line_ranges {
-                lines.extend(
-                    line_range_overlap_lines(range, &added_lines)
-                        .iter()
-                        .copied(),
-                );
-            }
+    for_each_entry_overlap_volume(log, added_payloads_by_file, |hash, chars, bytes| {
+        if hash.starts_with("h_") {
+            return;
         }
-    }
-
-    for ((file_path, tool_model), lines) in tool_lines_by_file {
-        let Some(pairs) = added_payloads_by_file.get(file_path) else {
-            continue;
-        };
-        let mut chars = 0u64;
-        let mut bytes = 0u64;
-        for &(line, payload) in pairs {
-            if lines.contains(&line) {
-                // Same payload + 1 synthetic LF rule as `count_line_payload_volume`.
-                chars = chars.saturating_add(payload.chars().count() as u64 + 1);
-                bytes = bytes.saturating_add(payload.len() as u64 + 1);
-            }
+        if let Some(tool_model) = entry_tool_model(log, hash) {
+            let tool_volume = volume.entry(tool_model).or_default();
+            tool_volume.0 = tool_volume.0.saturating_add(chars);
+            tool_volume.1 = tool_volume.1.saturating_add(bytes);
         }
-        volume.insert(tool_model, (chars, bytes));
-    }
+    });
 
     volume
+}
+
+/// AI (chars, bytes) and per-tool volume for the added lines blamed to an AI
+/// tool. `ai_tool_model_by_line` maps file -> line -> tool key (as returned by
+/// `diff_ai_accepted_stats`), so this volume follows the same blame-based line
+/// set as range `ai_accepted` and its per-tool counts.
+#[doc(hidden)]
+pub fn ai_volume_from_line_tool_models(
+    ai_tool_model_by_line: &HashMap<String, HashMap<u32, String>>,
+    added_payloads_by_file: &HashMap<String, Vec<(u32, &str)>>,
+) -> ((u64, u64), BTreeMap<String, (u64, u64)>) {
+    let mut ai = (0u64, 0u64);
+    let mut per_tool: BTreeMap<String, (u64, u64)> = BTreeMap::new();
+    for (file_path, pairs) in added_payloads_by_file {
+        let Some(tool_by_line) = ai_tool_model_by_line.get(file_path) else {
+            continue;
+        };
+        for pair in pairs {
+            let Some(tool_model) = tool_by_line.get(&pair.0) else {
+                continue;
+            };
+            let (chars, bytes) = pair_payload_volume(std::slice::from_ref(pair));
+            ai.0 = ai.0.saturating_add(chars);
+            ai.1 = ai.1.saturating_add(bytes);
+            let tool_volume = per_tool.entry(tool_model.clone()).or_default();
+            tool_volume.0 = tool_volume.0.saturating_add(chars);
+            tool_volume.1 = tool_volume.1.saturating_add(bytes);
+        }
+    }
+    (ai, per_tool)
 }
 
 /// Like `stats_for_commit_stats` but accepts pre-computed diff hunks and authorship log,
@@ -862,6 +867,100 @@ pub(crate) fn stats_for_commit_stats_from_hunks_with_merge_flag(
     authorship_log: Option<&crate::authorship::authorship_log_serialization::AuthorshipLog>,
     is_merge_commit: bool,
 ) -> CommitStats {
+    let fold = fold_diff_hunks(hunks, ignore_patterns, is_merge_commit);
+
+    let (ai_accepted, known_human_accepted, ai_accepted_by_tool) = accepted_lines_from_attestations(
+        authorship_log,
+        &fold.added_lines_by_file,
+        is_merge_commit,
+    );
+
+    let mut stats = stats_from_authorship_log(
+        authorship_log,
+        fold.git_diff_added_lines,
+        fold.git_diff_deleted_lines,
+        ai_accepted,
+        known_human_accepted,
+        &ai_accepted_by_tool,
+    );
+    fold.apply_git_diff_volume(&mut stats);
+    apply_added_volume(
+        &mut stats,
+        added_bucket_volume_from_attestations(
+            authorship_log,
+            &fold.added_payloads_by_file,
+            is_merge_commit,
+        ),
+        tool_model_volume_from_attestations(
+            authorship_log,
+            &fold.added_payloads_by_file,
+            is_merge_commit,
+        ),
+    );
+    stats
+}
+
+/// Line and char/byte totals folded from diff hunks, plus the per-file added
+/// lines and (line, payload) pairs that attribution and bucket volume use.
+pub(crate) struct DiffHunkFold<'a> {
+    pub git_diff_added_lines: u32,
+    pub git_diff_deleted_lines: u32,
+    pub git_diff_added_chars: u64,
+    pub git_diff_added_bytes: u64,
+    pub git_diff_deleted_chars: u64,
+    pub git_diff_deleted_bytes: u64,
+    /// Sorted, deduplicated added line numbers per file. Empty for merges.
+    pub added_lines_by_file: HashMap<String, Vec<u32>>,
+    /// (line, payload) pairs sorted by line per file. Empty for merges and
+    /// for files cap-skipped by `stats_max_file_bytes`.
+    pub added_payloads_by_file: HashMap<String, Vec<(u32, &'a str)>>,
+}
+
+impl DiffHunkFold<'_> {
+    pub(crate) fn apply_git_diff_volume(&self, stats: &mut CommitStats) {
+        stats.git_diff_added_chars = self.git_diff_added_chars;
+        stats.git_diff_added_bytes = self.git_diff_added_bytes;
+        stats.git_diff_deleted_chars = self.git_diff_deleted_chars;
+        stats.git_diff_deleted_bytes = self.git_diff_deleted_bytes;
+    }
+}
+
+/// Write bucket and per-tool char/byte volume onto `stats`. Tools only appear
+/// in `tool_volume` when they have accepted lines, so every key matches an
+/// existing breakdown entry.
+pub(crate) fn apply_added_volume(
+    stats: &mut CommitStats,
+    bucket_volume: AddedBucketVolume,
+    tool_volume: BTreeMap<String, (u64, u64)>,
+) {
+    stats.human_additions_chars = bucket_volume.human_chars;
+    stats.human_additions_bytes = bucket_volume.human_bytes;
+    stats.unknown_additions_chars = bucket_volume.unknown_chars;
+    stats.unknown_additions_bytes = bucket_volume.unknown_bytes;
+    stats.ai_additions_chars = bucket_volume.ai_chars;
+    stats.ai_additions_bytes = bucket_volume.ai_bytes;
+    // ai_accepted mirrors ai_additions, matching the line fields.
+    stats.ai_accepted_chars = bucket_volume.ai_chars;
+    stats.ai_accepted_bytes = bucket_volume.ai_bytes;
+
+    for (tool_model, (chars, bytes)) in tool_volume {
+        if let Some(tool_stats) = stats.tool_model_breakdown.get_mut(&tool_model) {
+            tool_stats.ai_additions_chars = chars;
+            tool_stats.ai_additions_bytes = bytes;
+            tool_stats.ai_accepted_chars = chars;
+            tool_stats.ai_accepted_bytes = bytes;
+        }
+    }
+}
+
+/// Fold diff hunks into line and char/byte totals, skipping ignored files.
+/// Files whose counted payload exceeds `stats_max_file_bytes` keep their line
+/// counts but contribute no char/byte volume.
+pub(crate) fn fold_diff_hunks<'a>(
+    hunks: &'a [crate::commands::diff::DiffHunk],
+    ignore_patterns: &[String],
+    is_merge_commit: bool,
+) -> DiffHunkFold<'a> {
     let ignore_matcher = build_ignore_matcher(ignore_patterns);
 
     // Per-hunk payload volume from the in-memory hunk text. Ignored files get
@@ -984,55 +1083,16 @@ pub(crate) fn stats_for_commit_stats_from_hunks_with_merge_flag(
         pairs.dedup_by_key(|(line, _)| *line);
     }
 
-    let (ai_accepted, known_human_accepted, ai_accepted_by_tool) =
-        accepted_lines_from_attestations(authorship_log, &added_lines_by_file, is_merge_commit);
-
-    let mut stats = stats_from_authorship_log(
-        authorship_log,
+    DiffHunkFold {
         git_diff_added_lines,
         git_diff_deleted_lines,
-        ai_accepted,
-        known_human_accepted,
-        &ai_accepted_by_tool,
-    );
-    stats.git_diff_added_chars = git_diff_added_chars;
-    stats.git_diff_added_bytes = git_diff_added_bytes;
-    stats.git_diff_deleted_chars = git_diff_deleted_chars;
-    stats.git_diff_deleted_bytes = git_diff_deleted_bytes;
-
-    // Bucket volume uses the same attestation overlap as the line buckets.
-    let bucket_volume = added_bucket_volume_from_attestations(
-        authorship_log,
-        &added_payloads_by_file,
-        is_merge_commit,
-    );
-    stats.human_additions_chars = bucket_volume.human_chars;
-    stats.human_additions_bytes = bucket_volume.human_bytes;
-    stats.unknown_additions_chars = bucket_volume.unknown_chars;
-    stats.unknown_additions_bytes = bucket_volume.unknown_bytes;
-    stats.ai_additions_chars = bucket_volume.ai_chars;
-    stats.ai_additions_bytes = bucket_volume.ai_bytes;
-    // ai_accepted mirrors ai_additions, matching the line fields.
-    stats.ai_accepted_chars = bucket_volume.ai_chars;
-    stats.ai_accepted_bytes = bucket_volume.ai_bytes;
-
-    // Tools only appear in the volume map when they have accepted lines, so
-    // every key matches an existing breakdown entry created from
-    // ai_accepted_by_tool.
-    let tool_volume = tool_model_volume_from_attestations(
-        authorship_log,
-        &added_payloads_by_file,
-        is_merge_commit,
-    );
-    for (tool_model, (chars, bytes)) in tool_volume {
-        if let Some(tool_stats) = stats.tool_model_breakdown.get_mut(&tool_model) {
-            tool_stats.ai_additions_chars = chars;
-            tool_stats.ai_additions_bytes = bytes;
-            tool_stats.ai_accepted_chars = chars;
-            tool_stats.ai_accepted_bytes = bytes;
-        }
+        git_diff_added_chars,
+        git_diff_added_bytes,
+        git_diff_deleted_chars,
+        git_diff_deleted_bytes,
+        added_lines_by_file,
+        added_payloads_by_file,
     }
-    stats
 }
 
 /// Get git diff statistics between commit and its parent

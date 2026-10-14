@@ -12,7 +12,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 /// Extract the first complete JSON object from mixed stdout/stderr output.
-fn stats_from_args(repo: &TestRepo, args: &[&str]) -> CommitStats {
+pub(crate) fn stats_from_args(repo: &TestRepo, args: &[&str]) -> CommitStats {
     let raw = repo.git_ai(args).expect("git-ai stats should succeed");
     let json = extract_json_object(&raw);
     serde_json::from_str(&json).expect("valid stats json")

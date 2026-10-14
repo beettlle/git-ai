@@ -326,3 +326,139 @@ fn test_stats_range_ignore_precomposed_non_ascii_path_drops_volume() {
 fn test_stats_range_ignore_decomposed_non_ascii_path_drops_volume() {
     assert_range_ignores_non_ascii_path_volume("cafe\u{301}.txt");
 }
+
+/// Range stats apply `stats_max_file_bytes` the same way single-commit stats
+/// do: an over-cap file keeps its line counts but contributes 0 to every
+/// char/byte field, and raising the cap restores its volume.
+#[test]
+fn test_stats_range_file_cap_skips_oversized_file_volume() {
+    let mut repo = TestRepo::new();
+    repo.patch_git_ai_config(|patch| {
+        patch.stats_max_file_bytes = Some(50);
+    });
+
+    fs::write(repo.path().join("README.md"), "# Repo\n").unwrap();
+    repo.git_ai(&["checkpoint", "mock_known_human", "README.md"])
+        .unwrap();
+    let base = repo.stage_all_and_commit("base commit").unwrap();
+    let mut readme = repo.filename("README.md");
+    readme.assert_committed_lines(lines!["# Repo".human()]);
+
+    fs::write(repo.path().join("small.txt"), "tiny\n").unwrap();
+    repo.git_ai(&["checkpoint", "mock_known_human", "small.txt"])
+        .unwrap();
+    repo.stage_all_and_commit("small human").unwrap();
+    let mut small_file = repo.filename("small.txt");
+    small_file.assert_committed_lines(lines!["tiny".human()]);
+
+    let big_line = "a".repeat(100); // 101 counted bytes with the synthetic LF
+    fs::write(repo.path().join("large.txt"), format!("{big_line}\n")).unwrap();
+    repo.git_ai(&["checkpoint", "mock_ai", "large.txt"])
+        .unwrap();
+    let head = repo.stage_all_and_commit("large ai").unwrap();
+    let mut large_file = repo.filename("large.txt");
+    large_file.assert_committed_lines(lines![big_line.as_str().ai()]);
+
+    let range = format!("{}..{}", base.commit_sha, head.commit_sha);
+    let (small_chars, small_bytes) = payload_volume(&["tiny"]);
+    let (large_chars, large_bytes) = payload_volume(&[big_line.as_str()]);
+
+    let stats = range_stats_from_args(&repo, &["stats", &range, "--json"]);
+    let range_stats = &stats.range_stats;
+    assert_eq!(range_stats.git_diff_added_lines, 2);
+    assert_eq!(range_stats.human_additions, 1);
+    assert_eq!(range_stats.ai_additions, 1);
+    assert_eq!(range_stats.unknown_additions, 0);
+    assert_eq!(range_stats.git_diff_added_chars, small_chars);
+    assert_eq!(range_stats.git_diff_added_bytes, small_bytes);
+    assert_eq!(range_stats.human_additions_chars, small_chars);
+    assert_eq!(range_stats.human_additions_bytes, small_bytes);
+    assert_eq!(range_stats.ai_additions_chars, 0);
+    assert_eq!(range_stats.ai_additions_bytes, 0);
+    assert_eq!(range_stats.ai_accepted_chars, 0);
+    assert_eq!(range_stats.ai_accepted_bytes, 0);
+    assert_eq!(range_stats.unknown_additions_chars, 0);
+    assert_eq!(range_stats.unknown_additions_bytes, 0);
+    let tool_stats = range_stats
+        .tool_model_breakdown
+        .get("mock_ai::unknown")
+        .expect("mock_ai::unknown tool headline should exist");
+    assert_eq!(tool_stats.ai_accepted, 1);
+    assert_eq!(tool_stats.ai_accepted_chars, 0);
+    assert_eq!(tool_stats.ai_accepted_bytes, 0);
+
+    repo.patch_git_ai_config(|patch| {
+        patch.stats_max_file_bytes = Some(1_000_000);
+    });
+    let stats = range_stats_from_args(&repo, &["stats", &range, "--json"]);
+    let range_stats = &stats.range_stats;
+    assert_eq!(range_stats.git_diff_added_chars, small_chars + large_chars);
+    assert_eq!(range_stats.git_diff_added_bytes, small_bytes + large_bytes);
+    assert_eq!(range_stats.ai_additions_chars, large_chars);
+    assert_eq!(range_stats.ai_additions_bytes, large_bytes);
+    let tool_stats = range_stats
+        .tool_model_breakdown
+        .get("mock_ai::unknown")
+        .expect("mock_ai::unknown tool headline should exist");
+    assert_eq!(tool_stats.ai_accepted_chars, large_chars);
+    assert_eq!(tool_stats.ai_accepted_bytes, large_bytes);
+}
+
+/// Range line totals use the same `--find-renames=1%` rename detection as
+/// single-commit stats and the range attribution diffs, so a weakly similar
+/// rename counts only its edited lines (not a full delete + add) and the
+/// three line buckets still sum to the git-diff total.
+#[test]
+fn test_stats_range_low_similarity_rename_counts_edited_lines_only() {
+    let repo = TestRepo::new();
+
+    let original: Vec<String> = (1..=10).map(|n| format!("shared line {n}")).collect();
+    fs::write(
+        repo.path().join("old.txt"),
+        format!("{}\n", original.join("\n")),
+    )
+    .unwrap();
+    repo.git_ai(&["checkpoint", "mock_known_human", "old.txt"])
+        .unwrap();
+    let base = repo.stage_all_and_commit("base commit").unwrap();
+    let mut old_file = repo.filename("old.txt");
+    let expected_old: Vec<_> = original.iter().map(|line| line.as_str().human()).collect();
+    old_file.assert_committed_lines(expected_old);
+
+    // Keep 2 of 10 lines (about 20% similar, below git's default 50% rename
+    // threshold) and rename the file.
+    let mut rewritten = vec![original[0].clone(), original[1].clone()];
+    rewritten.extend((3..=10).map(|n| format!("rewritten line {n}")));
+    fs::remove_file(repo.path().join("old.txt")).unwrap();
+    fs::write(
+        repo.path().join("new.txt"),
+        format!("{}\n", rewritten.join("\n")),
+    )
+    .unwrap();
+    repo.git_ai(&["checkpoint", "mock_ai", "new.txt"]).unwrap();
+    let head = repo.stage_all_and_commit("rename and rewrite").unwrap();
+    // The AI checkpoint sees new.txt as a new file, so every line is AI.
+    let mut new_file = repo.filename("new.txt");
+    let expected_new: Vec<_> = rewritten.iter().map(|line| line.as_str().ai()).collect();
+    new_file.assert_committed_lines(expected_new);
+
+    let range = format!("{}..{}", base.commit_sha, head.commit_sha);
+    let stats = range_stats_from_args(&repo, &["stats", &range, "--json"]);
+    let range_stats = &stats.range_stats;
+    assert_eq!(range_stats.git_diff_added_lines, 8);
+    assert_eq!(range_stats.git_diff_deleted_lines, 8);
+    assert_eq!(
+        range_stats.ai_additions + range_stats.human_additions + range_stats.unknown_additions,
+        range_stats.git_diff_added_lines
+    );
+
+    let commit_stats = crate::stats::stats_from_args(&repo, &["stats", &head.commit_sha, "--json"]);
+    assert_eq!(
+        commit_stats.git_diff_added_lines,
+        range_stats.git_diff_added_lines
+    );
+    assert_eq!(
+        commit_stats.git_diff_deleted_lines,
+        range_stats.git_diff_deleted_lines
+    );
+}

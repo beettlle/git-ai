@@ -1172,3 +1172,129 @@ fn test_tool_model_volume_skips_known_human_and_missing_files() {
     let volume = tool_model_volume_from_attestations(Some(&log), &payloads, false);
     assert!(volume.is_empty());
 }
+
+#[test]
+fn test_tool_model_volume_sums_one_tool_across_files() {
+    // One tool attested in two files must sum both files' payloads, not keep
+    // whichever file was folded last.
+    let mut log = test_log_with_prompt_entry(
+        "a.rs",
+        "cursor",
+        "claude-3-sonnet",
+        vec![LineRange::Single(1)],
+    );
+    let hash = log.attestations[0].entries[0].hash.clone();
+    let mut second_file = FileAttestation::new("b.rs".to_string());
+    second_file.add_entry(AttestationEntry::new(hash, vec![LineRange::Range(1, 2)]));
+    log.attestations.push(second_file);
+
+    let mut payloads: HashMap<String, Vec<(u32, &str)>> = HashMap::new();
+    payloads.insert("a.rs".to_string(), vec![(1, "abc")]);
+    payloads.insert("b.rs".to_string(), vec![(1, "defgh"), (2, "🎉")]);
+
+    let volume = tool_model_volume_from_attestations(Some(&log), &payloads, false);
+    let (chars, bytes) = volume.get("cursor::claude-3-sonnet").unwrap();
+    assert_eq!(*chars, 4 + 6 + 2);
+    assert_eq!(*bytes, 4 + 6 + 5);
+}
+
+#[test]
+fn test_tool_model_volume_counts_each_overlapping_entry() {
+    // Two entries from the same tool claiming the same line each count it,
+    // matching the per-entry sums of `accepted_lines_from_attestations`.
+    let mut log = test_log_with_prompt_entry(
+        "foo.rs",
+        "cursor",
+        "claude-3-sonnet",
+        vec![LineRange::Single(1)],
+    );
+    let hash = log.attestations[0].entries[0].hash.clone();
+    log.attestations[0].add_entry(AttestationEntry::new(hash, vec![LineRange::Single(1)]));
+
+    let mut payloads: HashMap<String, Vec<(u32, &str)>> = HashMap::new();
+    payloads.insert("foo.rs".to_string(), vec![(1, "abc")]);
+
+    let added_lines_by_file = HashMap::from([("foo.rs".to_string(), vec![1u32])]);
+    let (ai_lines, _, per_tool_lines) =
+        accepted_lines_from_attestations(Some(&log), &added_lines_by_file, false);
+    assert_eq!(ai_lines, 2);
+    assert_eq!(per_tool_lines.get("cursor::claude-3-sonnet"), Some(&2));
+
+    let volume = tool_model_volume_from_attestations(Some(&log), &payloads, false);
+    assert_eq!(volume.get("cursor::claude-3-sonnet"), Some(&(8, 8)));
+}
+
+// --- ai_volume_from_line_tool_models tests ---
+
+#[test]
+fn test_ai_volume_from_line_tool_models_sums_blamed_ai_lines_per_tool() {
+    // Only lines blamed to an AI tool count; each tool sums across files.
+    let ai_tool_model_by_line: HashMap<String, HashMap<u32, String>> = HashMap::from([
+        (
+            "a.rs".to_string(),
+            HashMap::from([
+                (1, "cursor::sonnet".to_string()),
+                (3, "codex::gpt".to_string()),
+            ]),
+        ),
+        (
+            "b.rs".to_string(),
+            HashMap::from([(2, "cursor::sonnet".to_string())]),
+        ),
+        // Lines missing from the payloads (e.g. cap-skipped files) add nothing.
+        (
+            "capped.rs".to_string(),
+            HashMap::from([(1, "cursor::sonnet".to_string())]),
+        ),
+    ]);
+    let mut payloads: HashMap<String, Vec<(u32, &str)>> = HashMap::new();
+    payloads.insert(
+        "a.rs".to_string(),
+        vec![(1, "abc"), (2, "human"), (3, "🎉")],
+    );
+    payloads.insert("b.rs".to_string(), vec![(1, "untracked"), (2, "defgh")]);
+
+    let (ai, per_tool) = ai_volume_from_line_tool_models(&ai_tool_model_by_line, &payloads);
+    assert_eq!(ai, (4 + 2 + 6, 4 + 5 + 6));
+    assert_eq!(per_tool.len(), 2);
+    assert_eq!(per_tool.get("cursor::sonnet"), Some(&(4 + 6, 4 + 6)));
+    assert_eq!(per_tool.get("codex::gpt"), Some(&(2, 5)));
+}
+
+// --- added_bucket_volume_from_attestations tests ---
+
+#[test]
+fn test_bucket_volume_overlapping_human_and_ai_entries_mirror_line_counts() {
+    // A line claimed by both a known-human and an AI entry counts in both
+    // buckets, and unknown is total - ai - human (saturating), exactly as the
+    // line fields are computed.
+    let mut log = test_log_with_prompt_entry(
+        "foo.rs",
+        "cursor",
+        "claude-3-sonnet",
+        vec![LineRange::Range(1, 2)],
+    );
+    log.attestations[0].add_entry(AttestationEntry::new(
+        "h_deadbeef".to_string(),
+        vec![LineRange::Single(2)],
+    ));
+
+    // "abc" -> 4/4, "🎉" -> 2/5, "xy" -> 3/3 (payload + synthetic LF).
+    let mut payloads: HashMap<String, Vec<(u32, &str)>> = HashMap::new();
+    payloads.insert("foo.rs".to_string(), vec![(1, "abc"), (2, "🎉"), (3, "xy")]);
+
+    let added_lines_by_file = HashMap::from([("foo.rs".to_string(), vec![1u32, 2, 3])]);
+    let (ai_lines, human_lines, per_tool) =
+        accepted_lines_from_attestations(Some(&log), &added_lines_by_file, false);
+    let line_stats = stats_from_authorship_log(Some(&log), 3, 0, ai_lines, human_lines, &per_tool);
+    assert_eq!(line_stats.ai_additions, 2);
+    assert_eq!(line_stats.human_additions, 1);
+    assert_eq!(line_stats.unknown_additions, 0);
+
+    let volume = added_bucket_volume_from_attestations(Some(&log), &payloads, false);
+    assert_eq!((volume.ai_chars, volume.ai_bytes), (4 + 2, 4 + 5));
+    assert_eq!((volume.human_chars, volume.human_bytes), (2, 5));
+    // Totals are 9 chars / 12 bytes: unknown chars = 9 - 6 - 2 = 1 and
+    // unknown bytes = 12 - 9 - 5 saturates to 0.
+    assert_eq!((volume.unknown_chars, volume.unknown_bytes), (1, 0));
+}
